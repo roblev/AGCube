@@ -31,7 +31,7 @@ function SlicePlane({ z }: { z: number }) {
         }
 
         rings.push(
-            <mesh key={i} position={[0.5, 0.5, z]} renderOrder={1}>
+            <mesh key={i} position={[0.5, 0.5, z]} renderOrder={-1}>
                 <ringGeometry args={[innerRadius, outerRadius, 32]} />
                 <meshStandardMaterial
                     color="#ddecec"
@@ -41,6 +41,7 @@ function SlicePlane({ z }: { z: number }) {
                     emissive="#00ffff"
                     emissiveIntensity={0}
                     depthWrite={false}
+                    depthTest={false}
                 />
             </mesh>
         )
@@ -193,8 +194,8 @@ function CrossSection2D({ z }: { z: number }) {
     const C_Back = '#00008b'    // z=0 face (dark blue)
     const C_Front = '#7185f1'   // z=1 face (light blue)
 
-    const canvasSize = 300
-    const margin = 50
+    const canvasSize = 400
+    const margin = 100
     const squareSize = canvasSize - margin * 2
     const edgeWidth = 8
 

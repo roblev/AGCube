@@ -1,4 +1,5 @@
 // Scene 3: Hypercube Properties Table
+import { useState, useEffect } from 'react'
 
 // Hypercube data table
 const HYPERCUBE_DATA = [
@@ -27,6 +28,34 @@ interface Scene3UIProps {
 }
 
 export function Scene3UI({ visibleRows }: Scene3UIProps) {
+    // Track which row should be highlighted (transient effect)
+    const [highlightedRow, setHighlightedRow] = useState<number | null>(null)
+    const [fadeOut, setFadeOut] = useState(false)
+
+    // When visibleRows changes, highlight the newest row then fade it out
+    useEffect(() => {
+        if (visibleRows > 0) {
+            // Highlight the newest row
+            setHighlightedRow(visibleRows - 1)
+            setFadeOut(false)
+
+            // Start fade-out after a brief moment
+            const fadeTimer = setTimeout(() => {
+                setFadeOut(true)
+            }, 100)
+
+            // Clear highlight after fade completes
+            const clearTimer = setTimeout(() => {
+                setHighlightedRow(null)
+            }, 1500)
+
+            return () => {
+                clearTimeout(fadeTimer)
+                clearTimeout(clearTimer)
+            }
+        }
+    }, [visibleRows])
+
     return (
         <div style={{
             position: 'fixed',
@@ -69,14 +98,16 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
                     </thead>
                     <tbody>
                         {HYPERCUBE_DATA.slice(0, visibleRows).map((row, i) => {
-                            const isNewest = i === visibleRows - 1
+                            const isHighlighted = i === highlightedRow
                             return (
                                 <tr
                                     key={row.n}
                                     style={{
                                         borderBottom: '1px solid rgba(255,255,255,0.1)',
-                                        backgroundColor: isNewest ? 'rgba(100, 200, 255, 0.2)' : 'transparent',
-                                        transition: 'background-color 0.3s ease'
+                                        backgroundColor: isHighlighted
+                                            ? (fadeOut ? 'transparent' : 'rgba(100, 200, 255, 0.4)')
+                                            : 'transparent',
+                                        transition: fadeOut ? 'background-color 1.2s ease-out' : 'none'
                                     }}
                                 >
                                     <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>{row.n}</td>
@@ -89,6 +120,22 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
                                 </tr>
                             )
                         })}
+                        {/* Formula row - shown after all data rows */}
+                        {visibleRows >= HYPERCUBE_DATA.length && (
+                            <tr style={{
+                                borderTop: '2px solid rgba(255,255,255,0.3)',
+                                backgroundColor: 'rgba(255, 200, 100, 0.1)',
+                                fontStyle: 'italic'
+                            }}>
+                                <td style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 600 }}>n</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'left' }}>n-cube</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: '14px' }}>2ⁿ</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: '14px' }}>n·2ⁿ⁻¹</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: '14px' }}>C(n,2)·2ⁿ⁻²</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: '14px' }}>C(n,3)·2ⁿ⁻³</td>
+                                <td style={{ padding: '12px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: '14px' }}>C(n,4)·2ⁿ⁻⁴</td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
                 {visibleRows < HYPERCUBE_DATA.length && (
@@ -107,3 +154,4 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
 }
 
 export const HYPERCUBE_ROW_COUNT = HYPERCUBE_DATA.length
+
