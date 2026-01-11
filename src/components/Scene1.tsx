@@ -157,6 +157,7 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
         <>
             {/* Scene 1 specific lights */}
             <pointLight position={[0.5, 0.5, 0.5]} intensity={1.5} distance={5} decay={1} />
+            <directionalLight position={[0.5, -2, 0.5]} intensity={0.5} target-position={[0.5, 0, 0.5]} /> {/* Diffuse light below dark green face */}
             <hemisphereLight intensity={0.4} groundColor="#444" />
             <Environment preset="city" />
 

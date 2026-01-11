@@ -59,16 +59,25 @@ export const Cube = ({ w }: { w: number }) => {
         }
 
         const pushPent = (p1: number[], p2: number[], p3: number[], p4: number[], p5: number[], col: string, norm: number[]) => {
-            // Fan from p1 (center): 3 triangles with continuous UV mapping
-            // p1 is at center (0.5, 0.5), other vertices arranged around it
-            const uv1 = [0.5, 0.5]  // Center point - same for all triangles
-            const uv2 = [0, 0]
-            const uv3 = [1, 0]
-            const uv4 = [1, 1]
-            const uv5 = [0, 1]
-            pushTri(p1, p2, p3, col, norm, uv1, uv2, uv3)
-            pushTri(p1, p3, p4, col, norm, uv1, uv3, uv4)
-            pushTri(p1, p4, p5, col, norm, uv1, uv4, uv5)
+            // Fan from p1: 3 triangles
+            // Use position-based UVs to ensure consistent texture alignment across all triangles
+            // For each vertex, project onto the face's 2D coordinate system based on the normal
+            const getUV = (p: number[]) => {
+                // Determine which axes to use for UV based on face normal
+                if (Math.abs(norm[0]) > 0.5) {
+                    // X-facing face: use Y and Z for UV
+                    return [p[1], p[2]]
+                } else if (Math.abs(norm[1]) > 0.5) {
+                    // Y-facing face: use X and Z for UV
+                    return [p[0], p[2]]
+                } else {
+                    // Z-facing face: use X and Y for UV
+                    return [p[0], p[1]]
+                }
+            }
+            pushTri(p1, p2, p3, col, norm, getUV(p1), getUV(p2), getUV(p3))
+            pushTri(p1, p3, p4, col, norm, getUV(p1), getUV(p3), getUV(p4))
+            pushTri(p1, p4, p5, col, norm, getUV(p1), getUV(p4), getUV(p5))
         }
 
         // Colors

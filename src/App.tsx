@@ -4,6 +4,7 @@ import { OrbitControls, Stars } from '@react-three/drei'
 import { Scene1, Scene1UI } from './components/Scene1'
 import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
 import { Scene3, Scene3UI, HYPERCUBE_ROW_COUNT } from './components/Scene3'
+import { Scene4, Scene4UI } from './components/Scene4'
 
 function App() {
   const [activeScene, setActiveScene] = useState(1)
@@ -13,6 +14,7 @@ function App() {
   const [resetTrigger, setResetTrigger] = useState(0) // For Scene 2 reset
   const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
   const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
+  const [zSlice, setZSlice] = useState(0.5) // For Scene 4 z-axis slice
 
   // Keyboard handlers
   useEffect(() => {
@@ -54,6 +56,16 @@ function App() {
         e.preventDefault()
         setShowArrows((prev) => !prev)
       }
+
+      // Arrow key handlers - Scene 4 specific (z-axis navigation)
+      if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && activeScene === 4) {
+        e.preventDefault()
+        if (e.code === 'ArrowLeft') {
+          setZSlice((prev) => Math.max(-0.5, Math.round((prev - 0.01) * 100) / 100))
+        } else if (e.code === 'ArrowRight') {
+          setZSlice((prev) => Math.min(1.5, Math.round((prev + 0.01) * 100) / 100))
+        }
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -61,22 +73,27 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
-      <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
-        {/* Shared Lights */}
-        <ambientLight intensity={0.8} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
+      {/* Scene 4 has its own split-view layout */}
+      {activeScene === 4 ? (
+        <Scene4 z={zSlice} setZ={setZSlice} />
+      ) : (
+        <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
+          {/* Shared Lights */}
+          <ambientLight intensity={0.8} />
+          <pointLight position={[10, 10, 10]} intensity={1} />
 
-        {/* Shared Starfield */}
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+          {/* Shared Starfield */}
+          <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-        {/* Scene-specific content */}
-        {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
-        {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
-        {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
+          {/* Scene-specific content */}
+          {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
+          {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
+          {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
 
-        {/* Shared Controls */}
-        <OrbitControls makeDefault />
-      </Canvas>
+          {/* Shared Controls */}
+          <OrbitControls makeDefault />
+        </Canvas>
+      )}
 
       {/* Overlay UI */}
       <div className="overlay-container">
@@ -91,6 +108,7 @@ function App() {
         {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
         {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
+        {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} />}
       </div>
     </div>
   )
