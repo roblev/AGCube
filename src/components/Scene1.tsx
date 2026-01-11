@@ -20,25 +20,29 @@ const FACE_CENTERS = [
 ]
 const CUBE_CENTER = new THREE.Vector3(0.5, 0.5, 0.5)
 
-// Arrow component: cylindrical shaft + conical head
-// thicknessScale affects radius AND cone height to maintain the same angle
-// Cone base stays fixed, cone tip moves inward when scale < 1
-function Arrow({ from, to, thicknessScale }: { from: THREE.Vector3, to: THREE.Vector3, thicknessScale: number }) {
-    if (thicknessScale <= 0) return null
-
+// Arrow component: cylindrical shaft + ring-based conical head
+// Radius shrinks based on w distance from 0.5 using: sqrt(original_radius² - distance²)
+// The cone is simulated with stacked rings, each shrinking independently
+function Arrow({ from, to, w }: { from: THREE.Vector3, to: THREE.Vector3, w: number }) {
     const direction = new THREE.Vector3().subVectors(to, from)
     const fullLength = direction.length()
     const dirNorm = direction.clone().normalize()
 
-    // Base dimensions at thicknessScale = 1
+    // Base dimensions at w=0.5
     const baseHeadLength = fullLength * 0.25
-    const baseRodRadius = 0.03
-    const baseConeRadius = 0.08
+    const baseRodRadius = 0.04
+    const baseConeRadius = 0.1
+    const ringCount = 100 // Number of rings to simulate the cone
 
-    // Scale both radius and cone height to maintain angle
-    const rodRadius = baseRodRadius * thicknessScale
-    const coneRadius = baseConeRadius * thicknessScale
-    const headLength = baseHeadLength * thicknessScale  // Scaled so tip moves back
+    // Calculate distance from w=0.5
+    const distFrom05 = Math.abs(w - 0.5)
+
+    // Apply Pythagorean formula for rod
+    const rodRadius = Math.sqrt(Math.max(0, baseRodRadius * baseRodRadius - distFrom05 * distFrom05))
+
+    // Check if the largest ring (at cone base) is still visible
+    const baseConeRadiusAdjusted = Math.sqrt(Math.max(0, baseConeRadius * baseConeRadius - distFrom05 * distFrom05))
+    if (baseConeRadiusAdjusted <= 0) return null
 
     // Shaft length stays constant at 0.75 of full length
     const shaftLength = fullLength * 0.75
@@ -46,29 +50,53 @@ function Arrow({ from, to, thicknessScale }: { from: THREE.Vector3, to: THREE.Ve
     // Shaft position (centered on shaft)
     const shaftMidpoint = new THREE.Vector3().addVectors(from, dirNorm.clone().multiplyScalar(shaftLength / 2))
 
-    // Cone base stays at the same position (end of shaft = 0.75 of fullLength)
-    // Cone is positioned with its base at shaftLength, extending TOWARD the target
-    // Three.js cone has origin at center, so position = base + headLength/2
+    // Cone base position
     const coneBasePos = new THREE.Vector3().addVectors(from, dirNorm.clone().multiplyScalar(shaftLength))
-    const headPosition = coneBasePos.clone().add(dirNorm.clone().multiplyScalar(headLength / 2))
 
     // Calculate rotation to align with direction
     const quaternion = new THREE.Quaternion()
     quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirNorm)
     const euler = new THREE.Euler().setFromQuaternion(quaternion)
 
+    // Generate disc rings for the cone shape using thin cylinders
+    const rings = []
+    const discThickness = baseHeadLength / ringCount // Discs touch each other
+
+    for (let i = 0; i < ringCount; i++) {
+        // t goes from 0 (base) to 1 (tip)
+        const t = (i + 0.5) / ringCount
+
+        // Original cone radius at this position (linear interpolation from base to tip)
+        const originalRingRadius = baseConeRadius * (1 - t)
+
+        // Apply Pythagorean formula to this ring's radius
+        const adjustedRingRadius = Math.sqrt(Math.max(0, originalRingRadius * originalRingRadius - distFrom05 * distFrom05))
+
+        // Skip this ring if it's too small
+        if (adjustedRingRadius <= 0) continue
+
+        // Position along the cone (from base to tip)
+        const ringPosition = coneBasePos.clone().add(dirNorm.clone().multiplyScalar(t * baseHeadLength))
+
+        rings.push(
+            <mesh key={i} position={ringPosition} rotation={euler} renderOrder={-1}>
+                <cylinderGeometry args={[adjustedRingRadius * (1 - 0.5 / ringCount), adjustedRingRadius * (1 + 0.5 / ringCount), discThickness, 24]} />
+                <meshStandardMaterial color="white" />
+            </mesh>
+        )
+    }
+
     return (
         <group>
-            {/* Shaft */}
-            <mesh position={shaftMidpoint} rotation={euler} renderOrder={-1}>
-                <cylinderGeometry args={[rodRadius, rodRadius, shaftLength, 8]} />
-                <meshStandardMaterial color="white" />
-            </mesh>
-            {/* Arrowhead */}
-            <mesh position={headPosition} rotation={euler} renderOrder={-1}>
-                <coneGeometry args={[coneRadius, headLength, 24]} />
-                <meshStandardMaterial color="white" />
-            </mesh>
+            {/* Shaft - only render if rod has positive radius */}
+            {rodRadius > 0 && (
+                <mesh position={shaftMidpoint} rotation={euler} renderOrder={-1}>
+                    <cylinderGeometry args={[rodRadius, rodRadius, shaftLength, 8]} />
+                    <meshStandardMaterial color="white" />
+                </mesh>
+            )}
+            {/* Ring-based arrowhead */}
+            {rings}
         </group>
     )
 }
@@ -81,10 +109,10 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
                 e.preventDefault() // Prevent native slider behavior
 
                 if (e.code === 'ArrowLeft') {
-                    const newVal = Math.max(-0.5, w - 0.05)
+                    const newVal = Math.max(-0.5, w - 0.01)
                     setW(Math.round(newVal * 100) / 100)
                 } else if (e.code === 'ArrowRight') {
-                    const newVal = Math.min(1.5, w + 0.05)
+                    const newVal = Math.min(1.5, w + 0.01)
                     setW(Math.round(newVal * 100) / 100)
                 }
             }
@@ -102,52 +130,26 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
         }
     }, [w])
 
-    // Calculate arrow thickness scale based on w
-    // w=0.5: full thickness (1.0)
-    // w=0.45 or w=0.55: 2/3 thickness
-    // w=0.4 or w=0.6 and beyond: hidden (0)
-    const arrowThicknessScale = useMemo(() => {
-        const distFrom05 = Math.abs(w - 0.5)
-        if (distFrom05 >= 0.1) return 0 // Gone at 0.4 and 0.6
-        if (distFrom05 <= 0.0) return 1 // Full at 0.5
-        // At dist=0.05 (w=0.45 or 0.55), scale = 2/3
-        // Linear from 1.0 at dist=0 to 0 at dist=0.1
-        // But we want 2/3 at dist=0.05, so: 1 - (dist / 0.15)
-        // But we want 2/3 at 0.05: scale = 1 - (dist / 0.15)
-        // Actually for 2/3 at 0.05: scale = 1 - (distFrom05 / 0.15) clamped to 0
-        return Math.max(0, 1 - (distFrom05 / 0.15))
-    }, [w])
-
     // Calculate center sphere radius for W dimension representation
-    // Visible for w between 0.05 and 0.95
-    // w=0.25 to 0.75: constant = rod diameter (radius 0.03)
-    // w=0.2, w=0.8: cone base size (radius 0.08)
-    // w=0 to 0.2: fade from 0 to 0.08
-    // w=0.8 to 1.0: fade from 0.08 to 0
+    // w=0.2 to 0.8: constant size (rod radius)
+    // At w=0.2 and w=0.8: step-change to cone base size
+    // w=0 to 0.2: shrinks from cone radius at w=0.2 to 0 at w=0
+    // w=0.8 to 1.0: shrinks from cone radius at w=0.8 to 0 at w=1.0
     const centerSphereRadius = useMemo(() => {
-        const rodRadius = 0.03
-        const coneRadius = 0.08
+        const rodRadius = 0.04
+        const coneRadius = 0.1
 
-        if (w < 0.05 || w > 0.95) return 0 // Outside visible range
+        if (w <= 0 || w >= 1.0) return 0 // Hidden outside 0-1 range
 
-        if (w <= 0.2) {
+        if (w > 0.2 && w < 0.8) {
+            // Constant at rodRadius in the middle range
+            return rodRadius
+        } else if (w <= 0.2) {
             // Linear from 0 at w=0 to coneRadius at w=0.2
             return (w / 0.2) * coneRadius
-        } else if (w <= 0.25) {
-            // Linear from coneRadius at w=0.2 to rodRadius at w=0.25
-            const t = (w - 0.2) / 0.05
-            return coneRadius + t * (rodRadius - coneRadius)
-        } else if (w <= 0.75) {
-            // Constant at rodRadius
-            return rodRadius
-        } else if (w <= 0.8) {
-            // Linear from rodRadius at w=0.75 to coneRadius at w=0.8
-            const t = (w - 0.75) / 0.05
-            return rodRadius + t * (coneRadius - rodRadius)
         } else {
             // Linear from coneRadius at w=0.8 to 0 at w=1.0
-            const t = (w - 0.8) / 0.2
-            return coneRadius * (1 - t)
+            return ((1.0 - w) / 0.2) * coneRadius
         }
     }, [w])
 
@@ -170,12 +172,12 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
             )}
 
             {/* Arrows from center to face centers */}
-            {showArrows && arrowThicknessScale > 0 && FACE_CENTERS.map((faceCenter, i) => (
+            {showArrows && FACE_CENTERS.map((faceCenter, i) => (
                 <Arrow
                     key={`arrow-${i}`}
                     from={CUBE_CENTER}
                     to={new THREE.Vector3(faceCenter[0], faceCenter[1], faceCenter[2])}
-                    thicknessScale={arrowThicknessScale}
+                    w={w}
                 />
             ))}
 
@@ -252,13 +254,14 @@ export function Scene1UI({ w, setW, showArrows }: Scene1UIProps) {
                 <p>Arrow keys adjust W-axis</p>
                 <p>Space bar slices corner</p>
                 <p>A: toggle arrows {showArrows ? '(ON)' : '(OFF)'}</p>
+                <p>C: toggle cube colors (at w=0,1)</p>
             </div>
 
             <div className="glass-card">
                 <div className="control-group">
                     <div className="slider-label">
                         <span>W-axis value</span>
-                        <span className={`slider-value ${Math.abs(w) < 0.05 || Math.abs(w - 1) < 0.05 ? 'highlight' : ''}`}>
+                        <span className={`slider-value ${w === 0 || w === 1 ? 'highlight' : ''}`}>
                             {w.toFixed(2)}
                         </span>
                     </div>

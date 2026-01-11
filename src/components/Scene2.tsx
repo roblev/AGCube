@@ -28,6 +28,50 @@ for (let i = 0; i < 16; i++) {
     }
 }
 
+// Tesseract faces - 24 square faces, each connecting 4 vertices that share 2 fixed coordinates
+// Each face is defined by 4 vertex indices forming a square
+const TESSERACT_FACES: [number, number, number, number][] = []
+
+// Helper to find vertex index by coordinates
+function findVertexIndex(x: number, y: number, z: number, w: number): number {
+    return TESSERACT_VERTICES_4D.findIndex(v => v[0] === x && v[1] === y && v[2] === z && v[3] === w)
+}
+
+// Generate faces: fix 2 dimensions, vary the other 2
+const dims = [0, 1, 2, 3] // x, y, z, w
+for (let d1 = 0; d1 < 4; d1++) {
+    for (let d2 = d1 + 1; d2 < 4; d2++) {
+        // d1 and d2 are the varying dimensions
+        // The other 2 are fixed
+        const fixedDims = dims.filter(d => d !== d1 && d !== d2)
+        for (const v1 of [-1, 1]) {
+            for (const v2 of [-1, 1]) {
+                // Create a face with fixed values for fixedDims
+                const coords: number[][] = []
+                for (const a of [-1, 1]) {
+                    for (const b of [-1, 1]) {
+                        const coord = [0, 0, 0, 0]
+                        coord[d1] = a
+                        coord[d2] = b
+                        coord[fixedDims[0]] = v1
+                        coord[fixedDims[1]] = v2
+                        coords.push(coord)
+                    }
+                }
+                // Reorder to form a proper quad (not a bowtie)
+                const [c0, c1, c2, c3] = coords
+                const i0 = findVertexIndex(c0[0], c0[1], c0[2], c0[3])
+                const i1 = findVertexIndex(c1[0], c1[1], c1[2], c1[3])
+                const i2 = findVertexIndex(c3[0], c3[1], c3[2], c3[3]) // swap 2 and 3 for proper winding
+                const i3 = findVertexIndex(c2[0], c2[1], c2[2], c2[3])
+                if (i0 >= 0 && i1 >= 0 && i2 >= 0 && i3 >= 0) {
+                    TESSERACT_FACES.push([i0, i1, i2, i3])
+                }
+            }
+        }
+    }
+}
+
 // Rotation mode labels
 export const ROTATION_MODES = [
     { xw: true, yw: false, zw: false, label: 'XW only' },
@@ -111,11 +155,20 @@ export function Scene2({ rotationMode, isPaused, resetTrigger }: Scene2Props) {
         roughness: 0.5
     }), [])
 
+    const faceMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+        color: '#4488ff',
+        transparent: true,
+        opacity: 0.08,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    }), [])
+
     const nodeGeometry = useMemo(() => new THREE.SphereGeometry(0.08, 16, 16), [])
 
     // Animation state
     const nodesRef = useRef<THREE.Mesh[]>([])
     const edgesRef = useRef<THREE.Mesh[]>([])
+    const facesRef = useRef<THREE.Mesh[]>([])
 
     // Base sizes (these will be scaled by camera distance)
     const BASE_NODE_SIZE = 0.012  // Base sphere radius
@@ -174,6 +227,32 @@ export function Scene2({ rotationMode, isPaused, resetTrigger }: Scene2Props) {
                 edge.rotateX(Math.PI / 2)
             }
         })
+
+        // Update face geometries
+        facesRef.current.forEach((faceMesh, i) => {
+            if (faceMesh && faceMesh.geometry) {
+                const [v0, v1, v2, v3] = TESSERACT_FACES[i]
+                const p0 = projectedVertices[v0]
+                const p1 = projectedVertices[v1]
+                const p2 = projectedVertices[v2]
+                const p3 = projectedVertices[v3]
+
+                // Update buffer geometry positions (2 triangles for quad)
+                const positions = faceMesh.geometry.attributes.position
+                if (positions) {
+                    const arr = positions.array as Float32Array
+                    // Triangle 1: v0, v1, v2
+                    arr[0] = p0.x; arr[1] = p0.y; arr[2] = p0.z
+                    arr[3] = p1.x; arr[4] = p1.y; arr[5] = p1.z
+                    arr[6] = p2.x; arr[7] = p2.y; arr[8] = p2.z
+                    // Triangle 2: v0, v2, v3
+                    arr[9] = p0.x; arr[10] = p0.y; arr[11] = p0.z
+                    arr[12] = p2.x; arr[13] = p2.y; arr[14] = p2.z
+                    arr[15] = p3.x; arr[16] = p3.y; arr[17] = p3.z
+                    positions.needsUpdate = true
+                }
+            }
+        })
     })
 
     return (
@@ -181,6 +260,22 @@ export function Scene2({ rotationMode, isPaused, resetTrigger }: Scene2Props) {
             {/* Lighting for Scene 2 */}
             <pointLight position={[5, 5, 5]} intensity={1} color="#ffffff" />
             <pointLight position={[-5, -5, -5]} intensity={0.5} color="#0088ff" />
+
+            {/* Faces (transparent) */}
+            {TESSERACT_FACES.map((_, i) => (
+                <mesh
+                    key={`face-${i}`}
+                    ref={(el) => { if (el) facesRef.current[i] = el }}
+                    material={faceMaterial}
+                >
+                    <bufferGeometry>
+                        <bufferAttribute
+                            attach="attributes-position"
+                            args={[new Float32Array(18), 3]}
+                        />
+                    </bufferGeometry>
+                </mesh>
+            ))}
 
             {/* Nodes (vertices) */}
             {TESSERACT_VERTICES_4D.map((_, i) => (

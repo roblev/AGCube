@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Scene1, Scene1UI } from './components/Scene1'
 import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
+import { Scene3, Scene3UI, HYPERCUBE_ROW_COUNT } from './components/Scene3'
 
 function App() {
   const [activeScene, setActiveScene] = useState(1)
@@ -11,6 +12,7 @@ function App() {
   const [isPaused, setIsPaused] = useState(false) // For Scene 2 animation pause
   const [resetTrigger, setResetTrigger] = useState(0) // For Scene 2 reset
   const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
+  const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
 
   // Keyboard handlers
   useEffect(() => {
@@ -27,6 +29,12 @@ function App() {
       if (e.code === 'Space' && activeScene === 2) {
         e.preventDefault()
         setRotationMode((prev) => (prev + 1) % ROTATION_MODES.length)
+      }
+
+      // Spacebar handler - Scene 3 specific (reveal next row)
+      if (e.code === 'Space' && activeScene === 3) {
+        e.preventDefault()
+        setVisibleRows((prev) => prev >= HYPERCUBE_ROW_COUNT ? 0 : prev + 1)
       }
 
       // P key handler - Scene 2 specific (toggle pause)
@@ -64,6 +72,7 @@ function App() {
         {/* Scene-specific content */}
         {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
         {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
+        {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
 
         {/* Shared Controls */}
         <OrbitControls makeDefault />
@@ -81,6 +90,7 @@ function App() {
         {/* Scene-specific UI */}
         {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
         {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
+        {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
       </div>
     </div>
   )

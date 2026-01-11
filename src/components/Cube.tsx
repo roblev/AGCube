@@ -4,24 +4,32 @@ import { Mesh, DoubleSide, MeshStandardMaterial, BufferGeometry, Float32BufferAt
 export const Cube = ({ w }: { w: number }) => {
     const meshRef = useRef<Mesh>(null!)
     const [showCut, setShowCut] = useState(true) // Toggle cut visibility with spacebar
-
-    // Spacebar listener to toggle cut
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space') {
-                e.preventDefault()
-                setShowCut(prev => !prev)
-            }
-        }
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+    const [showColors, setShowColors] = useState(false) // Toggle colored mode at w=0 or w=1 with C key
 
     // Calculate state flags (needed for hooks before conditional return)
     const isZero = Math.abs(w - 0) < 0.001
     const isOne = Math.abs(w - 1) < 0.001
     const isSolid = isZero || isOne
     const isVisible = w >= 0 && w <= 1
+
+    // Keyboard listener for spacebar and C key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === 'Space') {
+                e.preventDefault()
+                setShowCut(prev => !prev)
+            }
+            // C key toggles colors (visual change only at w=0 or w=1)
+            if (e.code === 'KeyC') {
+                e.preventDefault()
+                setShowColors(prev => !prev)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
+
 
     // Geometry Generation - must be called unconditionally (React hooks rule)
     const geometry = useMemo(() => {
@@ -51,10 +59,16 @@ export const Cube = ({ w }: { w: number }) => {
         }
 
         const pushPent = (p1: number[], p2: number[], p3: number[], p4: number[], p5: number[], col: string, norm: number[]) => {
-            // Fan from p1: 3 triangles
-            pushTri(p1, p2, p3, col, norm, [0, 0], [0.5, 0], [1, 0.33])
-            pushTri(p1, p3, p4, col, norm, [0, 0], [1, 0.33], [1, 0.66])
-            pushTri(p1, p4, p5, col, norm, [0, 0], [1, 0.66], [0.5, 1])
+            // Fan from p1 (center): 3 triangles with continuous UV mapping
+            // p1 is at center (0.5, 0.5), other vertices arranged around it
+            const uv1 = [0.5, 0.5]  // Center point - same for all triangles
+            const uv2 = [0, 0]
+            const uv3 = [1, 0]
+            const uv4 = [1, 1]
+            const uv5 = [0, 1]
+            pushTri(p1, p2, p3, col, norm, uv1, uv2, uv3)
+            pushTri(p1, p3, p4, col, norm, uv1, uv3, uv4)
+            pushTri(p1, p4, p5, col, norm, uv1, uv4, uv5)
         }
 
         // Colors
@@ -64,8 +78,6 @@ export const Cube = ({ w }: { w: number }) => {
         const C_Bottom = '#048004'
         const C_Back = '#00008b'
         const C_Front = '#7185f1'
-        const C_CutDark = '#f7f798'
-        const C_CutLight = '#cccc00'
 
         // Cut coordinates
         const cutC1 = [1, 1, cut]
@@ -82,9 +94,10 @@ export const Cube = ({ w }: { w: number }) => {
             pushPent([0, 1, 0], [0, 1, 1], cutC3, cutC1, [1, 1, 0], C_Top, [0, 1, 0])
             pushPent([0, 0, 1], [1, 0, 1], cutC2, cutC3, [0, 1, 1], C_Front, [0, 0, 1])
 
-            // Cut face: Only include for solid blue cubes (to close the hole)
+            // Cut face: Only include for solid cubes (to close the hole)
+            // Always use grey color for cut face, even when showColors is on
             if (isSolid) {
-                const cutColor = isZero ? C_CutDark : C_CutLight
+                const cutColor = isZero ? '#666666' : '#eeeeee'
                 pushTri(cutC1, cutC3, cutC2, cutColor, [0.577, 0.577, 0.577], [0, 0], [1, 0], [0.5, 1])
             }
         } else {
@@ -136,11 +149,11 @@ export const Cube = ({ w }: { w: number }) => {
         const mat = new MeshStandardMaterial({
             side: DoubleSide,
             vertexColors: true,
-            roughness: 0.2, // Base roughness
-            metalness: 0.8, // No metallic shine
+            roughness: 0.2,
+            metalness: 0.8,
             bumpMap: textureMap,
-            bumpScale: 0.5, // Very visible bumps
-            roughnessMap: textureMap, // Use same texture for roughness variation
+            bumpScale: 0.5,
+            roughnessMap: textureMap,
             depthWrite: false
         })
         return mat
@@ -148,14 +161,28 @@ export const Cube = ({ w }: { w: number }) => {
 
     // Update material props based on w logic
     if (isZero) {
-        materialHelper.color.set('#666666')
-        materialHelper.vertexColors = false
+        if (showColors) {
+            // Colored mode at w=0
+            materialHelper.color.set('white')
+            materialHelper.vertexColors = true
+        } else {
+            // Grey mode at w=0
+            materialHelper.color.set('#666666')
+            materialHelper.vertexColors = false
+        }
         materialHelper.opacity = 1
         materialHelper.transparent = false
         materialHelper.depthWrite = true
     } else if (isOne) {
-        materialHelper.color.set('#eeeeee')
-        materialHelper.vertexColors = false
+        if (showColors) {
+            // Colored mode at w=1
+            materialHelper.color.set('white')
+            materialHelper.vertexColors = true
+        } else {
+            // Grey mode at w=1
+            materialHelper.color.set('#eeeeee')
+            materialHelper.vertexColors = false
+        }
         materialHelper.opacity = 1
         materialHelper.transparent = false
         materialHelper.depthWrite = true
