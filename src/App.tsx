@@ -1,142 +1,86 @@
 import { useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Stars, Environment, Text, Billboard } from '@react-three/drei'
-import { Cube } from './components/Cube'
+import { OrbitControls, Stars } from '@react-three/drei'
+import { Scene1, Scene1UI } from './components/Scene1'
+import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
 
 function App() {
+  const [activeScene, setActiveScene] = useState(1)
   const [w, setW] = useState(0.5)
+  const [rotationMode, setRotationMode] = useState(0) // For Scene 2 tesseract rotation
+  const [isPaused, setIsPaused] = useState(false) // For Scene 2 animation pause
+  const [resetTrigger, setResetTrigger] = useState(0) // For Scene 2 reset
+  const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
 
-  // Arrow key navigation for w-axis
+  // Keyboard handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'ArrowLeft') {
-        const newVal = Math.max(-0.5, w - 0.05)
-        setW(Math.round(newVal * 100) / 100)
-      } else if (e.code === 'ArrowRight') {
-        const newVal = Math.min(1.5, w + 0.05)
-        setW(Math.round(newVal * 100) / 100)
+      // Number keys for scene switching
+      if (e.code.startsWith('Digit')) {
+        const sceneNum = parseInt(e.code.replace('Digit', ''))
+        if (sceneNum >= 0 && sceneNum <= 9) {
+          setActiveScene(sceneNum)
+        }
+      }
+
+      // Spacebar handler - Scene 2 specific (toggle rotation planes)
+      if (e.code === 'Space' && activeScene === 2) {
+        e.preventDefault()
+        setRotationMode((prev) => (prev + 1) % ROTATION_MODES.length)
+      }
+
+      // P key handler - Scene 2 specific (toggle pause)
+      if (e.code === 'KeyP' && activeScene === 2) {
+        e.preventDefault()
+        setIsPaused((prev) => !prev)
+      }
+
+      // R key handler - Scene 2 specific (reset orientation)
+      if (e.code === 'KeyR' && activeScene === 2) {
+        e.preventDefault()
+        setResetTrigger((prev) => prev + 1)
+      }
+
+      // A key handler - Scene 1 specific (toggle arrows)
+      if (e.code === 'KeyA' && activeScene === 1) {
+        e.preventDefault()
+        setShowArrows((prev) => !prev)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [w])
+  }, [activeScene])
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
       <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
-        {/* Lights */}
+        {/* Shared Lights */}
         <ambientLight intensity={0.8} />
         <pointLight position={[10, 10, 10]} intensity={1} />
-        {/* Interior light - more diffuse with larger falloff */}
-        <pointLight position={[0.5, 0.5, 0.5]} intensity={1.5} distance={5} decay={1} />
-        {/* Hemisphere light for soft ambient fill */}
-        <hemisphereLight intensity={0.4} groundColor="#444" />
 
-        {/* Environment for reflections */}
-        <Environment preset="city" />
+        {/* Shared Starfield */}
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-        {/* Content */}
-        <Cube w={w} />
+        {/* Scene-specific content */}
+        {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
+        {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
 
-        {/* Custom thick axes */}
-        {(() => {
-          const extendToOrigin = w < 0 || w > 1
-          const length = extendToOrigin ? 2.5 : 1.5
-          const center = extendToOrigin ? 1.25 : 1.75
-
-          return (
-            <>
-              {/* X axis - Red */}
-              <mesh position={[center, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-                <cylinderGeometry args={[0.01, 0.01, length, 8]} />
-                <meshStandardMaterial color="red" transparent opacity={0.5} />
-              </mesh>
-              {/* Y axis - Green */}
-              <mesh position={[0, center, 0]}>
-                <cylinderGeometry args={[0.01, 0.01, length, 8]} />
-                <meshStandardMaterial color="green" transparent opacity={0.5} />
-              </mesh>
-              {/* Z axis - Blue */}
-              <mesh position={[0, 0, center]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.01, 0.01, length, 8]} />
-                <meshStandardMaterial color="blue" transparent opacity={0.5} />
-              </mesh>
-            </>
-          )
-        })()}
-
-        {/* Labels */}
-        <group>
-          {/* Origin */}
-          <Billboard position={[-0.1, -0.1, -0.1]}>
-            <Text fontSize={0.2} color="white">0</Text>
-          </Billboard>
-
-          {/* X Axis Labels */}
-          <Billboard position={[1, -0.1, 0]}>
-            <Text fontSize={0.15} color="white">1</Text>
-          </Billboard>
-          <Billboard position={[2, -0.1, 0]}>
-            <Text fontSize={0.15} color="white">2</Text>
-          </Billboard>
-          {/* Rotate X to face along X axis */}
-          <Text position={[2.7, 0, 0]} rotation={[0, Math.PI / 2, 0]} fontSize={0.3} color="#ff8888">X</Text>
-
-          {/* Y Axis Labels */}
-          <Billboard position={[-0.1, 1, 0]}>
-            <Text fontSize={0.15} color="white">1</Text>
-          </Billboard>
-          <Billboard position={[-0.1, 2, 0]}>
-            <Text fontSize={0.15} color="white">2</Text>
-          </Billboard>
-          {/* Rotate Y to face along Y axis */}
-          <Text position={[0, 2.7, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} color="#88ff88">Y</Text>
-
-          {/* Z Axis Labels */}
-          <Billboard position={[0, -0.1, 1]}>
-            <Text fontSize={0.15} color="white">1</Text>
-          </Billboard>
-          <Billboard position={[0, -0.1, 2]}>
-            <Text fontSize={0.15} color="white">2</Text>
-          </Billboard>
-          <Text position={[0, 0, 2.7]} fontSize={0.3} color="#8888ff">Z</Text>
-        </group>
-
-        {/* Controls */}
+        {/* Shared Controls */}
         <OrbitControls makeDefault />
       </Canvas>
 
       {/* Overlay UI */}
       <div className="overlay-container">
-        <div className="glass-card title-card">
-          <h1>4D Cube Viewer</h1>
-          <p>Left click + drag rotates</p>
-          <p>Right click + drag pans</p>
-          <p>Scroll zooms</p>
-          <p>Arrow keys adjust W-axis</p>
-          <p>Space bar slices corner</p>
+        {/* Scene Indicator (shared) */}
+        <div className="glass-card" style={{ padding: '12px 16px', minWidth: 'auto' }}>
+          <span style={{ fontSize: '14px', opacity: 0.7 }}>Scene</span>
+          <span style={{ fontSize: '24px', fontWeight: 600, marginLeft: '8px' }}>{activeScene}</span>
+          <span style={{ fontSize: '12px', opacity: 0.5, marginLeft: '8px' }}>Press 0-9 to switch</span>
         </div>
 
-        <div className="glass-card">
-          <div className="control-group">
-            <div className="slider-label">
-              <span>W-axis value</span>
-              <span className={`slider-value ${Math.abs(w) < 0.05 || Math.abs(w - 1) < 0.05 ? 'highlight' : ''}`}>
-                {w.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="-0.5"
-              max="1.5"
-              step="0.05"
-              value={w}
-              onChange={(e) => setW(parseFloat(e.target.value))}
-              className="custom-slider"
-            />
-          </div>
-        </div>
+        {/* Scene-specific UI */}
+        {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
+        {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
       </div>
     </div>
   )
