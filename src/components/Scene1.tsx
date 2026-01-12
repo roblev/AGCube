@@ -213,7 +213,9 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
                 <Billboard position={[2, -0.1, 0]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[2.7, 0, 0]} rotation={[0, Math.PI / 2, 0]} fontSize={0.3} color="#ff8888">X</Text>
+                <Billboard position={[2.7, 0, 0]}>
+                    <Text fontSize={0.3} color="#ff8888">X</Text>
+                </Billboard>
 
                 {/* Y Axis Labels */}
                 <Billboard position={[-0.1, 1, 0]}>
@@ -222,7 +224,9 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
                 <Billboard position={[-0.1, 2, 0]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[0, 2.7, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} color="#88ff88">Y</Text>
+                <Billboard position={[0, 2.7, 0]}>
+                    <Text fontSize={0.3} color="#88ff88">Y</Text>
+                </Billboard>
 
                 {/* Z Axis Labels */}
                 <Billboard position={[0, -0.1, 1]}>
@@ -231,7 +235,9 @@ export function Scene1({ w, setW, showArrows = false }: Scene1Props) {
                 <Billboard position={[0, -0.1, 2]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[0, 0, 2.7]} fontSize={0.3} color="#8888ff">Z</Text>
+                <Billboard position={[0, 0, 2.7]}>
+                    <Text fontSize={0.3} color="#8888ff">Z</Text>
+                </Billboard>
             </group>
         </>
     )

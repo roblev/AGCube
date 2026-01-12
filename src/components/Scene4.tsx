@@ -9,7 +9,7 @@ interface Scene4Props {
 }
 
 // Slice plane component - circular gradient with concentric rings
-// Solid up to radius 1, progressively transparent from radius 1 to 2
+// Solid up to radius 1.5, progressively transparent from radius 1.5 to 2
 function SlicePlane({ z }: { z: number }) {
     const ringCount = 100
     const maxRadius = 2
@@ -21,12 +21,12 @@ function SlicePlane({ z }: { z: number }) {
         const outerRadius = ((i + 1) / ringCount) * maxRadius
         const midRadius = (innerRadius + outerRadius) / 2
 
-        // Opacity: fully opaque (0.7) up to radius 1, then fade to 0 at radius 2
+        // Opacity: fully opaque (0.7) up to solidRadius, then fade to 0 at maxRadius
         let opacity: number
         if (midRadius <= solidRadius) {
-            opacity = 0.7  // Solid within radius 1
+            opacity = 0.7  // Solid within solidRadius
         } else {
-            // Linear fade from 0.7 at radius 1 to 0 at radius 2
+            // Linear fade from 0.7 at solidRadius to 0 at maxRadius
             opacity = 0.7 * (1 - (midRadius - solidRadius) / (maxRadius - solidRadius))
         }
 
@@ -150,7 +150,9 @@ function Scene4_3DView({ z }: { z: number }) {
                 <Billboard position={[2, -0.1, 0]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[2.7, 0, 0]} rotation={[0, Math.PI / 2, 0]} fontSize={0.3} color="#ff8888">X</Text>
+                <Billboard position={[2.7, 0, 0]}>
+                    <Text fontSize={0.3} color="#ff8888">X</Text>
+                </Billboard>
 
                 {/* Y Axis Labels */}
                 <Billboard position={[-0.1, 1, 0]}>
@@ -159,7 +161,9 @@ function Scene4_3DView({ z }: { z: number }) {
                 <Billboard position={[-0.1, 2, 0]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[0, 2.7, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.3} color="#88ff88">Y</Text>
+                <Billboard position={[0, 2.7, 0]}>
+                    <Text fontSize={0.3} color="#88ff88">Y</Text>
+                </Billboard>
 
                 {/* Z Axis Labels */}
                 <Billboard position={[0, -0.1, 1]}>
@@ -168,7 +172,9 @@ function Scene4_3DView({ z }: { z: number }) {
                 <Billboard position={[0, -0.1, 2]}>
                     <Text fontSize={0.15} color="white">2</Text>
                 </Billboard>
-                <Text position={[0, 0, 2.7]} fontSize={0.3} color="#8888ff">Z</Text>
+                <Billboard position={[0, 0, 2.7]}>
+                    <Text fontSize={0.3} color="#8888ff">Z</Text>
+                </Billboard>
             </group>
 
             {/* Orbit Controls */}

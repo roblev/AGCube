@@ -5,6 +5,7 @@ import { Scene1, Scene1UI } from './components/Scene1'
 import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
 import { Scene3, Scene3UI, HYPERCUBE_ROW_COUNT } from './components/Scene3'
 import { Scene4, Scene4UI } from './components/Scene4'
+import { Scene5, Scene5UI } from './components/Scene5'
 
 function App() {
   const [activeScene, setActiveScene] = useState(1)
@@ -15,6 +16,10 @@ function App() {
   const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
   const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
   const [zSlice, setZSlice] = useState(0.5) // For Scene 4 z-axis slice
+  const [scene5W, setScene5W] = useState(0.5) // For Scene 5 w-axis slice
+  const [scene5Paused, setScene5Paused] = useState(false) // For Scene 5 rotation pause
+  const [scene5RotationMode, setScene5RotationMode] = useState(0) // For Scene 5 rotation planes
+  const [scene5ResetTrigger, setScene5ResetTrigger] = useState(0) // For Scene 5 orientation reset
 
   // Keyboard handlers
   useEffect(() => {
@@ -66,6 +71,29 @@ function App() {
           setZSlice((prev) => Math.min(1.5, Math.round((prev + 0.01) * 100) / 100))
         }
       }
+
+      // Arrow key handlers - Scene 5 specific (w-axis navigation)
+      if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && activeScene === 5) {
+        e.preventDefault()
+        if (e.code === 'ArrowLeft') {
+          setScene5W((prev) => Math.max(-0.5, Math.round((prev - 0.01) * 100) / 100))
+        } else if (e.code === 'ArrowRight') {
+          setScene5W((prev) => Math.min(1.5, Math.round((prev + 0.01) * 100) / 100))
+        }
+      }
+
+      // P key handler - Scene 5 specific (toggle rotation pause)
+      if (e.code === 'KeyP' && activeScene === 5) {
+        e.preventDefault()
+        setScene5Paused((prev) => !prev)
+      }
+
+      // Spacebar handler - Scene 5 specific (toggle rotation planes and reset orientation)
+      if (e.code === 'Space' && activeScene === 5) {
+        e.preventDefault()
+        setScene5RotationMode((prev) => (prev + 1) % ROTATION_MODES.length)
+        setScene5ResetTrigger((prev) => prev + 1) // Reset orientation on each mode change
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -89,6 +117,7 @@ function App() {
           {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
           {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
           {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
+          {activeScene === 5 && <Scene5 w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} resetTrigger={scene5ResetTrigger} />}
 
           {/* Shared Controls */}
           <OrbitControls makeDefault />
@@ -109,6 +138,7 @@ function App() {
         {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
         {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} />}
+        {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
       </div>
     </div>
   )
