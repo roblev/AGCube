@@ -6,6 +6,7 @@ import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
 import { Scene3, Scene3UI, HYPERCUBE_ROW_COUNT } from './components/Scene3'
 import { Scene4, Scene4UI } from './components/Scene4'
 import { Scene5, Scene5UI } from './components/Scene5'
+import { Scene6, Scene6UI } from './components/Scene6'
 
 function App() {
   const [activeScene, setActiveScene] = useState(1)
@@ -20,6 +21,8 @@ function App() {
   const [scene5Paused, setScene5Paused] = useState(false) // For Scene 5 rotation pause
   const [scene5RotationMode, setScene5RotationMode] = useState(0) // For Scene 5 rotation planes
   const [scene5ResetTrigger, setScene5ResetTrigger] = useState(0) // For Scene 5 orientation reset
+  const [scene6Stage, setScene6Stage] = useState(0) // For Scene 6 dimension stage (0-4)
+  const [scene6AnimProgress, setScene6AnimProgress] = useState(0) // For Scene 6 animation progress
 
   // Keyboard handlers
   useEffect(() => {
@@ -94,6 +97,13 @@ function App() {
         setScene5RotationMode((prev) => (prev + 1) % ROTATION_MODES.length)
         setScene5ResetTrigger((prev) => prev + 1) // Reset orientation on each mode change
       }
+
+      // Spacebar handler - Scene 6 specific (advance dimension stage)
+      if (e.code === 'Space' && activeScene === 6) {
+        e.preventDefault()
+        setScene6Stage((prev) => (prev + 1) % 6) // Cycle through 0-5 (6 stages)
+        setScene6AnimProgress(0) // Reset animation progress
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -118,6 +128,7 @@ function App() {
           {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
           {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
           {activeScene === 5 && <Scene5 w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} resetTrigger={scene5ResetTrigger} />}
+          {activeScene === 6 && <Scene6 stage={scene6Stage} animProgress={scene6AnimProgress} setAnimProgress={setScene6AnimProgress} />}
 
           {/* Shared Controls */}
           <OrbitControls makeDefault />
@@ -139,6 +150,7 @@ function App() {
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
         {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} />}
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
+        {activeScene === 6 && <Scene6UI stage={scene6Stage} />}
       </div>
     </div>
   )
