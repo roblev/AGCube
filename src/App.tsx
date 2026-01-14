@@ -17,6 +17,7 @@ function App() {
   const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
   const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
   const [zSlice, setZSlice] = useState(0.5) // For Scene 4 z-axis slice
+  const [scene4Rotation, setScene4Rotation] = useState<[number, number, number]>([0, 0, 0]) // For Scene 4 cube rotation
   const [scene5W, setScene5W] = useState(0.5) // For Scene 5 w-axis slice
   const [scene5Paused, setScene5Paused] = useState(false) // For Scene 5 rotation pause
   const [scene5RotationMode, setScene5RotationMode] = useState(0) // For Scene 5 rotation planes
@@ -44,7 +45,8 @@ function App() {
       // Spacebar handler - Scene 3 specific (reveal next row)
       if (e.code === 'Space' && activeScene === 3) {
         e.preventDefault()
-        setVisibleRows((prev) => prev >= HYPERCUBE_ROW_COUNT ? 0 : prev + 1)
+        // +1 for the formula row that shows after all data rows
+        setVisibleRows((prev) => prev >= HYPERCUBE_ROW_COUNT + 1 ? 0 : prev + 1)
       }
 
       // P key handler - Scene 2 specific (toggle pause)
@@ -72,6 +74,44 @@ function App() {
           setZSlice((prev) => Math.max(-0.5, Math.round((prev - 0.01) * 100) / 100))
         } else if (e.code === 'ArrowRight') {
           setZSlice((prev) => Math.min(1.5, Math.round((prev + 0.01) * 100) / 100))
+        }
+      }
+
+      // Rotation keys for Scene 4 (ZX for X-axis, AS for Y-axis, QW for Z-axis)
+      if (activeScene === 4) {
+        const rotStep = Math.PI / 18 // 10 degrees in radians
+        const normalize = (angle: number) => {
+          // Keep angle in [0, 2π) range
+          const twoPi = 2 * Math.PI
+          return ((angle % twoPi) + twoPi) % twoPi
+        }
+        if (e.code === 'KeyZ') {
+          e.preventDefault()
+          setScene4Rotation(prev => [normalize(prev[0] + rotStep), prev[1], prev[2]])
+        }
+        if (e.code === 'KeyX') {
+          e.preventDefault()
+          setScene4Rotation(prev => [normalize(prev[0] - rotStep), prev[1], prev[2]])
+        }
+        if (e.code === 'KeyA') {
+          e.preventDefault()
+          setScene4Rotation(prev => [prev[0], normalize(prev[1] + rotStep), prev[2]])
+        }
+        if (e.code === 'KeyS') {
+          e.preventDefault()
+          setScene4Rotation(prev => [prev[0], normalize(prev[1] - rotStep), prev[2]])
+        }
+        if (e.code === 'KeyQ') {
+          e.preventDefault()
+          setScene4Rotation(prev => [prev[0], prev[1], normalize(prev[2] + rotStep)])
+        }
+        if (e.code === 'KeyW') {
+          e.preventDefault()
+          setScene4Rotation(prev => [prev[0], prev[1], normalize(prev[2] - rotStep)])
+        }
+        if (e.code === 'KeyR') {
+          e.preventDefault()
+          setScene4Rotation([0, 0, 0])
         }
       }
 
@@ -113,7 +153,7 @@ function App() {
     <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
       {/* Scene 4 has its own split-view layout */}
       {activeScene === 4 ? (
-        <Scene4 z={zSlice} setZ={setZSlice} />
+        <Scene4 z={zSlice} setZ={setZSlice} rotation={scene4Rotation} />
       ) : (
         <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
           {/* Shared Lights */}
@@ -148,7 +188,7 @@ function App() {
         {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
         {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
-        {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} />}
+        {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} rotation={scene4Rotation} />}
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
         {activeScene === 6 && <Scene6UI stage={scene6Stage} />}
       </div>

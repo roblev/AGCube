@@ -222,7 +222,7 @@ function AnimatedSquare({ progress, visible }: { progress: number, visible: bool
                 [0, height, 0], [1, height, 0]
             ].map((pos, i) => (
                 <mesh key={i} position={pos as [number, number, number]}>
-                    <sphereGeometry args={[0.02, 16, 16]} />
+                    <sphereGeometry args={[0.04, 16, 16]} />
                     <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
                 </mesh>
             ))}
@@ -334,7 +334,7 @@ function AnimatedCube({ progress, visible, opacity = 1 }: { progress: number, vi
                 [0, 0, depth], [1, 0, depth], [0, 1, depth], [1, 1, depth]
             ].map((pos, i) => (
                 <mesh key={`corner-${i}`} position={pos as [number, number, number]}>
-                    <sphereGeometry args={[0.02, 16, 16]} />
+                    <sphereGeometry args={[0.04, 16, 16]} />
                     <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
                 </mesh>
             ))}
@@ -413,7 +413,7 @@ function TesseractGridCell({ wValue, showCube, position, scale }: {
                         [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]
                     ].map((pos, i) => (
                         <mesh key={`corner-${i}`} position={pos as [number, number, number]}>
-                            <sphereGeometry args={[0.03, 16, 16]} />
+                            <sphereGeometry args={[0.04, 16, 16]} />
                             <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
                         </mesh>
                     ))}

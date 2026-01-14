@@ -10,6 +10,9 @@ const HYPERCUBE_DATA = [
     { n: 4, name: 'Tesseract', vertices: 16, edges: 32, faces: 24, cells: 8, tesseracts: 1 },
     { n: 5, name: 'Penteract', vertices: 32, edges: 80, faces: 80, cells: 40, tesseracts: 10 },
     { n: 6, name: 'Hexeract', vertices: 64, edges: 192, faces: 240, cells: 160, tesseracts: 60 },
+    { n: 7, name: 'Hepteract', vertices: 128, edges: 448, faces: 672, cells: 560, tesseracts: 280 },
+    { n: 8, name: 'Octeract', vertices: 256, edges: 1024, faces: 1792, cells: 1792, tesseracts: 1120 },
+    { n: 9, name: 'Enneract', vertices: 512, edges: 2304, faces: 4608, cells: 5376, tesseracts: 4032 },
     { n: 10, name: 'Dekeract', vertices: 1024, edges: 5120, faces: 11520, cells: 15360, tesseracts: 13440 },
 ]
 
@@ -77,13 +80,13 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
                     tableLayout: 'fixed'
                 }}>
                     <colgroup>
-                        <col style={{ width: '8%' }} />
-                        <col style={{ width: '22%' }} />
-                        <col style={{ width: '14%' }} />
-                        <col style={{ width: '14%' }} />
-                        <col style={{ width: '14%' }} />
-                        <col style={{ width: '14%' }} />
-                        <col style={{ width: '14%' }} />
+                        <col style={{ width: '60px' }} />
+                        <col style={{ width: '90px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '100px' }} />
+                        <col style={{ width: '100px' }} />
                     </colgroup>
                     <thead>
                         <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.3)' }}>
@@ -121,7 +124,7 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
                             )
                         })}
                         {/* Formula row - shown after all data rows */}
-                        {visibleRows >= HYPERCUBE_DATA.length && (
+                        {visibleRows > HYPERCUBE_DATA.length && (
                             <tr style={{
                                 borderTop: '2px solid rgba(255,255,255,0.3)',
                                 backgroundColor: 'rgba(255, 200, 100, 0.1)',
@@ -138,12 +141,12 @@ export function Scene3UI({ visibleRows }: Scene3UIProps) {
                         )}
                     </tbody>
                 </table>
-                {visibleRows < HYPERCUBE_DATA.length && (
+                {visibleRows <= HYPERCUBE_DATA.length && (
                     <p style={{ marginTop: '16px', textAlign: 'center', opacity: 0.6, fontSize: '12px' }}>
-                        Press Space to reveal next row ({visibleRows}/{HYPERCUBE_DATA.length})
+                        Press Space to reveal next row ({visibleRows}/{HYPERCUBE_DATA.length + 1})
                     </p>
                 )}
-                {visibleRows >= HYPERCUBE_DATA.length && (
+                {visibleRows > HYPERCUBE_DATA.length && (
                     <p style={{ marginTop: '16px', textAlign: 'center', opacity: 0.6, fontSize: '12px' }}>
                         All rows revealed! Press Space to reset
                     </p>
