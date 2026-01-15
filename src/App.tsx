@@ -18,6 +18,7 @@ function App() {
   const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
   const [zSlice, setZSlice] = useState(0.5) // For Scene 4 z-axis slice
   const [scene4Rotation, setScene4Rotation] = useState<[number, number, number]>([0, 0, 0]) // For Scene 4 cube rotation
+  const [scene4ShowArrows, setScene4ShowArrows] = useState(false) // For Scene 4 arrows toggle
   const [scene5W, setScene5W] = useState(0.5) // For Scene 5 w-axis slice
   const [scene5Paused, setScene5Paused] = useState(false) // For Scene 5 rotation pause
   const [scene5RotationMode, setScene5RotationMode] = useState(0) // For Scene 5 rotation planes
@@ -113,6 +114,10 @@ function App() {
           e.preventDefault()
           setScene4Rotation([0, 0, 0])
         }
+        if (e.code === 'KeyO') {
+          e.preventDefault()
+          setScene4ShowArrows(prev => !prev)
+        }
       }
 
       // Arrow key handlers - Scene 5 specific (w-axis navigation)
@@ -153,7 +158,7 @@ function App() {
     <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
       {/* Scene 4 has its own split-view layout */}
       {activeScene === 4 ? (
-        <Scene4 z={zSlice} setZ={setZSlice} rotation={scene4Rotation} />
+        <Scene4 z={zSlice} setZ={setZSlice} rotation={scene4Rotation} showArrows={scene4ShowArrows} />
       ) : (
         <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
           {/* Shared Lights */}
@@ -188,7 +193,7 @@ function App() {
         {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
         {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
-        {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} rotation={scene4Rotation} />}
+        {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} rotation={scene4Rotation} showArrows={scene4ShowArrows} />}
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
         {activeScene === 6 && <Scene6UI stage={scene6Stage} />}
       </div>

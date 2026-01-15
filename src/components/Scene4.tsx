@@ -8,6 +8,7 @@ interface Scene4Props {
     z: number
     setZ: (value: number) => void
     rotation: [number, number, number]
+    showArrows: boolean
 }
 
 // Cube face colors from Cube.tsx
@@ -71,6 +72,235 @@ const CUBE_EDGES: CubeEdge[] = [
     { v1: 2, v2: 6, faces: getEdgeFaces(2, 6) },
     { v1: 3, v2: 7, faces: getEdgeFaces(3, 7) },
 ]
+
+// 6 face centers of the unit cube - these are the targets for arrows
+const FACE_CENTERS = [
+    [1, 0.5, 0.5],   // +X face
+    [0, 0.5, 0.5],   // -X face
+    [0.5, 1, 0.5],   // +Y face
+    [0.5, 0, 0.5],   // -Y face
+    [0.5, 0.5, 1],   // +Z face
+    [0.5, 0.5, 0],   // -Z face
+]
+
+// Base arrow dimensions (same as Scene 1 at w=0.5)
+const BASE_ROD_RADIUS = 0.04
+const BASE_CONE_RADIUS = 0.1
+
+// Arrow component for Scene 4 - renders arrow pointing from center to face
+// The arrow is rotated along with the cube
+function Arrow3D({ from, to }: { from: THREE.Vector3, to: THREE.Vector3 }) {
+    const direction = new THREE.Vector3().subVectors(to, from)
+    const fullLength = direction.length()
+    const dirNorm = direction.clone().normalize()
+
+    const baseHeadLength = fullLength * 0.4
+    const shaftLength = fullLength * 0.6
+    const ringCount = 50
+
+    // Shaft position (centered on shaft)
+    const shaftMidpoint = new THREE.Vector3().addVectors(from, dirNorm.clone().multiplyScalar(shaftLength / 2))
+
+    // Cone base position
+    const coneBasePos = new THREE.Vector3().addVectors(from, dirNorm.clone().multiplyScalar(shaftLength))
+
+    // Calculate rotation to align with direction
+    const quaternion = new THREE.Quaternion()
+    quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirNorm)
+    const euler = new THREE.Euler().setFromQuaternion(quaternion)
+
+    // Generate disc rings for the cone shape
+    const rings = []
+    const discThickness = baseHeadLength / ringCount
+
+    for (let i = 0; i < ringCount; i++) {
+        const t = (i + 0.5) / ringCount
+        const ringRadius = BASE_CONE_RADIUS * (1 - t)
+        const ringPosition = coneBasePos.clone().add(dirNorm.clone().multiplyScalar(t * baseHeadLength))
+
+        rings.push(
+            <mesh key={i} position={ringPosition} rotation={euler} renderOrder={-1}>
+                <cylinderGeometry args={[ringRadius * (1 - 0.5 / ringCount), ringRadius * (1 + 0.5 / ringCount), discThickness, 24]} />
+                <meshStandardMaterial color="white" />
+            </mesh>
+        )
+    }
+
+    return (
+        <group>
+            {/* Shaft */}
+            <mesh position={shaftMidpoint} rotation={euler} renderOrder={-1}>
+                <cylinderGeometry args={[BASE_ROD_RADIUS, BASE_ROD_RADIUS, shaftLength, 8]} />
+                <meshStandardMaterial color="white" />
+            </mesh>
+            {/* Ring-based arrowhead */}
+            {rings}
+        </group>
+    )
+}
+
+// Compute arrow slice - returns shape data for rendering
+// Shapes can be: ellipse (angled slice), rectangle (rod parallel), triangle (cone axial), or hyperbola (cone off-center)
+interface ArrowSlice {
+    type: 'ellipse' | 'rectangle' | 'triangle' | 'hyperbola'
+    x: number           // Center x position
+    y: number           // Center y position
+    rotation: number    // Rotation angle in radians
+    // For ellipse:
+    rx?: number         // Semi-axis along arrow direction
+    ry?: number         // Semi-axis perpendicular to arrow
+    // For rectangle:
+    width?: number      // Length along arrow direction
+    height?: number     // Width perpendicular to arrow
+    // For triangle:
+    baseWidth?: number  // Width at base of cone
+    length?: number     // Length from base to tip
+    // For hyperbola:
+    zOffset?: number    // Distance from cone axis (determines hyperbola curve)
+    coneRadius?: number // Base radius of the cone
+    coneLength?: number // Length of the cone
+}
+
+function computeArrowSlices(zSlice: number, rotation: [number, number, number]): ArrowSlice[] {
+    const center = [0.5, 0.5, 0.5]
+    const slices: ArrowSlice[] = []
+
+    for (const faceCenter of FACE_CENTERS) {
+        // Rotate arrow endpoints
+        const fromRotated = rotatePoint([0.5, 0.5, 0.5], rotation, center)
+        const toRotated = rotatePoint(faceCenter, rotation, center)
+
+        // Arrow geometry: shaft from center to 60% of distance, cone from 60% to 100%
+        const dx = toRotated[0] - fromRotated[0]
+        const dy = toRotated[1] - fromRotated[1]
+        const dz = toRotated[2] - fromRotated[2]
+        const arrowLength = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        // Direction vector (normalized)
+        const dirX = dx / arrowLength
+        const dirY = dy / arrowLength
+        const dirZ = dz / arrowLength
+
+        // Key points along the arrow
+        const shaftEndT = 0.6
+        const shaftEnd = [
+            fromRotated[0] + dx * shaftEndT,
+            fromRotated[1] + dy * shaftEndT,
+            fromRotated[2] + dz * shaftEndT
+        ]
+
+        // Check if arrow intersects the z-slice plane
+        // Need to account for arrow radius for parallel arrows
+        const minZ = Math.min(fromRotated[2], toRotated[2])
+        const maxZ = Math.max(fromRotated[2], toRotated[2])
+        const maxRadius = Math.max(BASE_ROD_RADIUS, BASE_CONE_RADIUS)
+
+        if (zSlice < minZ - maxRadius - 0.001 || zSlice > maxZ + maxRadius + 0.001) continue
+
+        // Calculate the angle between the arrow axis and the z-plane normal
+        const cosTheta = Math.abs(dirZ)
+        const ellipseAngle = Math.atan2(dirY, dirX)
+
+        // Arrow is parallel to slice plane (cosTheta near 0)
+        if (cosTheta < 0.01) {
+            // Check if slice plane passes through the arrow's z-level
+            const arrowZ = fromRotated[2] // Arrow is at constant z when parallel
+            const zOffset = Math.abs(arrowZ - zSlice)
+
+            // ROD: Check if slice plane passes through rod
+            if (zOffset < BASE_ROD_RADIUS) {
+                // Calculate chord width at this z offset
+                const halfHeight = Math.sqrt(Math.max(0, BASE_ROD_RADIUS * BASE_ROD_RADIUS - zOffset * zOffset))
+
+                if (halfHeight > 0.001) {
+                    // Rod center is at the midpoint between cube center and shaft end
+                    const rodCenterX = (fromRotated[0] + shaftEnd[0]) / 2
+                    const rodCenterY = (fromRotated[1] + shaftEnd[1]) / 2
+                    const rodLength = arrowLength * shaftEndT
+
+                    slices.push({
+                        type: 'rectangle',
+                        x: rodCenterX,
+                        y: rodCenterY,
+                        rotation: ellipseAngle,
+                        width: rodLength,
+                        height: halfHeight * 2
+                    })
+                }
+            }
+
+            // CONE: Check if slice plane passes through cone
+            if (zOffset < BASE_CONE_RADIUS) {
+                const coneLength = arrowLength * (1 - shaftEndT)
+
+                // Cone center is at the midpoint between shaft end and arrow tip
+                const coneCenterX = (shaftEnd[0] + toRotated[0]) / 2
+                const coneCenterY = (shaftEnd[1] + toRotated[1]) / 2
+
+                if (zOffset < 0.001) {
+                    // Axial slice - shows as triangle
+                    slices.push({
+                        type: 'triangle',
+                        x: coneCenterX,
+                        y: coneCenterY,
+                        rotation: ellipseAngle,
+                        baseWidth: BASE_CONE_RADIUS * 2,
+                        length: coneLength
+                    })
+                } else {
+                    // Off-center parallel slice - shows as hyperbola
+                    slices.push({
+                        type: 'hyperbola',
+                        x: coneCenterX,
+                        y: coneCenterY,
+                        rotation: ellipseAngle,
+                        zOffset: zOffset,
+                        coneRadius: BASE_CONE_RADIUS,
+                        coneLength: coneLength
+                    })
+                }
+            }
+        } else {
+            // Arrow intersects at an angle - produces an ellipse
+            const t = (zSlice - fromRotated[2]) / dz
+
+            // Ensure t is within valid range
+            if (t < 0 || t > 1) continue
+
+            // Calculate intersection point
+            const intersectX = fromRotated[0] + t * dx
+            const intersectY = fromRotated[1] + t * dy
+
+            // Determine if we're in the shaft or cone portion
+            let baseRadius: number
+            if (t <= shaftEndT) {
+                // In the shaft portion - constant radius
+                baseRadius = BASE_ROD_RADIUS
+            } else {
+                // In the cone portion - radius decreases linearly
+                const coneT = (t - shaftEndT) / (1 - shaftEndT)
+                baseRadius = BASE_CONE_RADIUS * (1 - coneT)
+            }
+
+            if (baseRadius > 0.001) {
+                // Calculate ellipse parameters
+                const semiMinor = baseRadius
+                const semiMajor = baseRadius / cosTheta
+
+                slices.push({
+                    type: 'ellipse',
+                    x: intersectX,
+                    y: intersectY,
+                    rotation: ellipseAngle,
+                    rx: semiMajor,
+                    ry: semiMinor
+                })
+            }
+        }
+    }
+
+    return slices
+}
 
 // Helper: Apply Euler rotation around a center point using THREE.js Matrix4
 function rotatePoint(point: number[], rotation: [number, number, number], center: number[]): number[] {
@@ -312,7 +542,7 @@ function SliceLines3D({ slicePoints }: { slicePoints: Array<{ x: number, y: numb
 }
 
 // 3D View component (left side)
-function Scene4_3DView({ z, rotation }: { z: number, rotation: [number, number, number] }) {
+function Scene4_3DView({ z, rotation, showArrows }: { z: number, rotation: [number, number, number], showArrows: boolean }) {
     // Use same axis dimensions as Scene 1 (at w=0.5)
     const length = 1.5
     const center = 1.75
@@ -343,6 +573,23 @@ function Scene4_3DView({ z, rotation }: { z: number, rotation: [number, number, 
                 <group position={[-0.5, -0.5, -0.5]}>
                     <Cube w={0.5} />
                 </group>
+
+                {/* Arrows (rotate with the cube) */}
+                {showArrows && FACE_CENTERS.map((faceCenter, i) => (
+                    <Arrow3D
+                        key={`arrow-${i}`}
+                        from={new THREE.Vector3(0, 0, 0)}
+                        to={new THREE.Vector3(faceCenter[0] - 0.5, faceCenter[1] - 0.5, faceCenter[2] - 0.5)}
+                    />
+                ))}
+
+                {/* Center sphere */}
+                {showArrows && (
+                    <mesh position={[0, 0, 0]} renderOrder={-1}>
+                        <sphereGeometry args={[BASE_ROD_RADIUS, 24, 24]} />
+                        <meshStandardMaterial color="white" />
+                    </mesh>
+                )}
             </group>
 
             {/* Slice Plane (in world coordinates) */}
@@ -416,9 +663,12 @@ function Scene4_3DView({ z, rotation }: { z: number, rotation: [number, number, 
 }
 
 // 2D Cross-section View component
-function CrossSection2D({ z, rotation }: { z: number, rotation: [number, number, number] }) {
+function CrossSection2D({ z, rotation, showArrows }: { z: number, rotation: [number, number, number], showArrows: boolean }) {
     const sliceResult = useMemo(() => computeSlice(z, rotation), [z, rotation])
     const { points, isFace } = sliceResult
+
+    // Compute arrow slices for 2D visualization
+    const arrowSlices = useMemo(() => showArrows ? computeArrowSlices(z, rotation) : [], [z, rotation, showArrows])
 
     const canvasSize = 400
     const margin = 100
@@ -590,13 +840,109 @@ function CrossSection2D({ z, rotation }: { z: number, rotation: [number, number,
                 >
                     {getStateLabel()}
                 </text>
+
+                {/* Arrow slice shapes (ellipse, rectangle, or triangle) */}
+                {arrowSlices.map((slice, i) => {
+                    const cx = toSvgX(slice.x)
+                    const cy = toSvgY(slice.y)
+                    const rotationDeg = -slice.rotation * 180 / Math.PI // Negate for SVG coordinate system
+
+                    if (slice.type === 'rectangle' && slice.width && slice.height) {
+                        // Render as rectangle for rod parallel to slice plane
+                        const rectW = slice.width * squareSize
+                        const rectH = slice.height * squareSize
+                        return (
+                            <rect
+                                key={`arrow-slice-2d-${i}`}
+                                x={cx - rectW / 2}
+                                y={cy - rectH / 2}
+                                width={rectW}
+                                height={rectH}
+                                fill="white"
+                                opacity={0.9}
+                                transform={`rotate(${rotationDeg} ${cx} ${cy})`}
+                            />
+                        )
+                    } else if (slice.type === 'triangle' && slice.baseWidth && slice.length) {
+                        // Render as triangle for cone parallel to slice plane
+                        // Triangle points: base centered at -length/2, tip at +length/2
+                        const halfBase = (slice.baseWidth * squareSize) / 2
+                        const halfLen = (slice.length * squareSize) / 2
+                        // Points before rotation: base at left (-halfLen, ±halfBase), tip at right (+halfLen, 0)
+                        const points = `${-halfLen},${-halfBase} ${-halfLen},${halfBase} ${halfLen},0`
+                        return (
+                            <polygon
+                                key={`arrow-slice-2d-${i}`}
+                                points={points}
+                                fill="white"
+                                opacity={0.9}
+                                transform={`translate(${cx}, ${cy}) rotate(${rotationDeg})`}
+                            />
+                        )
+                    } else if (slice.type === 'ellipse' && slice.rx && slice.ry) {
+                        // Render as ellipse for angled slices
+                        return (
+                            <ellipse
+                                key={`arrow-slice-2d-${i}`}
+                                cx={cx}
+                                cy={cy}
+                                rx={slice.rx * squareSize}
+                                ry={slice.ry * squareSize}
+                                fill="white"
+                                opacity={0.9}
+                                transform={`rotate(${rotationDeg} ${cx} ${cy})`}
+                            />
+                        )
+                    } else if (slice.type === 'hyperbola' && slice.zOffset !== undefined && slice.coneRadius && slice.coneLength) {
+                        // Render hyperbola for off-center cone slice
+                        // The cross-section of a cone sliced parallel to its axis (but off-center) is a hyperbola
+                        const d = slice.zOffset  // distance from axis
+                        const R = slice.coneRadius  // base radius
+                        const L = slice.coneLength  // cone length
+                        const halfLen = (L * squareSize) / 2
+
+                        // Generate hyperbola points
+                        // At position x along cone (from base at -halfLen to tip at +halfLen):
+                        // The cone radius at that point is: r(x) = R * (1 - (x + halfLen) / (2 * halfLen))
+                        // The half-width of slice at that x is: sqrt(r(x)^2 - d^2) if r(x) > d, else 0
+                        const numPoints = 20
+                        const topPoints: string[] = []
+                        const bottomPoints: string[] = []
+
+                        for (let j = 0; j <= numPoints; j++) {
+                            const t = j / numPoints  // 0 to 1
+                            const x = -halfLen + t * 2 * halfLen  // -halfLen to +halfLen
+                            const coneRadiusAtX = R * (1 - t)  // R at base (t=0), 0 at tip (t=1)
+
+                            if (coneRadiusAtX > d) {
+                                const halfWidth = Math.sqrt(coneRadiusAtX * coneRadiusAtX - d * d) * squareSize
+                                topPoints.push(`${x},${-halfWidth}`)
+                                bottomPoints.unshift(`${x},${halfWidth}`)
+                            }
+                        }
+
+                        if (topPoints.length > 1) {
+                            const pathPoints = [...topPoints, ...bottomPoints].join(' ')
+                            return (
+                                <polygon
+                                    key={`arrow-slice-2d-${i}`}
+                                    points={pathPoints}
+                                    fill="white"
+                                    opacity={0.9}
+                                    transform={`translate(${cx}, ${cy}) rotate(${rotationDeg})`}
+                                />
+                            )
+                        }
+                    }
+                    return null
+                })}
             </svg>
         </div>
     )
 }
 
 // Main Scene 4 component - split view
-export function Scene4({ z, rotation }: Scene4Props) {
+export function Scene4({ z, rotation, showArrows }: Scene4Props) {
     return (
         <div style={{
             width: '100%',
@@ -607,13 +953,13 @@ export function Scene4({ z, rotation }: Scene4Props) {
             {/* Left side - 3D View */}
             <div style={{ flex: 1, height: '100%' }}>
                 <Canvas camera={{ position: [3, 3, 3], fov: 60 }}>
-                    <Scene4_3DView z={z} rotation={rotation} />
+                    <Scene4_3DView z={z} rotation={rotation} showArrows={showArrows} />
                 </Canvas>
             </div>
 
             {/* Right side - 2D Cross-section */}
             <div style={{ flex: 1, height: '100%' }}>
-                <CrossSection2D z={z} rotation={rotation} />
+                <CrossSection2D z={z} rotation={rotation} showArrows={showArrows} />
             </div>
         </div>
     )
@@ -624,9 +970,10 @@ interface Scene4UIProps {
     z: number
     setZ: (value: number) => void
     rotation: [number, number, number]
+    showArrows: boolean
 }
 
-export function Scene4UI({ z, setZ, rotation }: Scene4UIProps) {
+export function Scene4UI({ z, setZ, rotation, showArrows }: Scene4UIProps) {
     const rotDeg = rotation.map(r => Math.round(r * 180 / Math.PI))
 
     return (
@@ -637,7 +984,7 @@ export function Scene4UI({ z, setZ, rotation }: Scene4UIProps) {
                 <p>Right: 2D cross-section result</p>
                 <p>←→ move cross-section slice on Z-axis</p>
                 <p>Z/X A/S Q/W rotate XYZ · R Reset</p>
-                <p>Space Bar toggle cube corner slice</p>
+                <p>O: toggle arrows {showArrows ? '(ON)' : '(OFF)'}</p>
             </div>
 
             <div className="glass-card">
