@@ -156,7 +156,7 @@ function App() {
       // Spacebar handler - Scene 7 specific (advance stage)
       if (e.code === 'Space' && activeScene === 7) {
         e.preventDefault()
-        setScene7Stage((prev) => (prev + 1) % 5) // Cycle through 0-4 (5 stages)
+        setScene7Stage((prev) => (prev + 1) % 14) // Cycle through 0-13 (14 stages)
         setScene7AnimProgress(0) // Reset animation progress
       }
     }

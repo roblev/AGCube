@@ -7,35 +7,10 @@ import * as THREE from 'three'
 const ANIMATION_DURATION = 2.0
 
 // Stage names for UI
-const STAGE_NAMES = ['Line 1: +∞ → [0,1]', 'Lines 2-3: → 3 segments', 'Line 4: → 4 segments', 'Rotate All', 'Close Square', 'Fill Square']
+const STAGE_NAMES = ['Line 1: +∞ → [0,1]', 'Lines 2-3: → 3 segments', 'Line 4: → 4 segments', 'Rotate All', 'Close Square', 'Fill Square', 'Add 4 Squares', '6th Square', 'Fold into Cube', 'Close Cube', 'Solid Cube', 'Add 6 Cubes', '8th Cube', 'Fold into Tesseract']
 
-// Create bump/roughness texture like Scene 1 for metallic panel look
-function useScene1Texture() {
-    return useMemo(() => {
-        const size = 128
-        const canvas = document.createElement('canvas')
-        canvas.width = size
-        canvas.height = size
-        const ctx = canvas.getContext('2d')!
-
-        // Fill with high-contrast noise for visible bump effect
-        const imageData = ctx.createImageData(size, size)
-        for (let i = 0; i < imageData.data.length; i += 4) {
-            const noise = Math.random() * 255
-            imageData.data[i] = noise
-            imageData.data[i + 1] = noise
-            imageData.data[i + 2] = noise
-            imageData.data[i + 3] = 255
-        }
-        ctx.putImageData(imageData, 0, 0)
-
-        const tex = new THREE.CanvasTexture(canvas)
-        tex.wrapS = THREE.RepeatWrapping
-        tex.wrapT = THREE.RepeatWrapping
-        tex.repeat.set(4, 4)
-        return tex
-    }, [])
-}
+// Face color matching Scene1's +Y face (light green)
+const SQUARE_COLOR = '#57f157'
 
 interface Scene7Props {
     stage: number
@@ -355,6 +330,821 @@ function Stage4Rotation({ progress }: { progress: number }) {
     )
 }
 
+// Solid filled square with Scene1-style material
+function SolidSquare() {
+    // Create bump/roughness texture for metallic panel look
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color: SQUARE_COLOR,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: true,
+        opacity: 0.9,
+    }), [texture])
+
+    return (
+        <group>
+            {/* Filled square face */}
+            <mesh position={[0.5, 0.5, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+
+            {/* Edge lines */}
+            {/* Bottom edge */}
+            <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.015, 0.015, 1, 8]} />
+                <meshStandardMaterial color="#ffcc00" metalness={0.6} roughness={0.3} />
+            </mesh>
+            {/* Top edge */}
+            <mesh position={[0.5, 1, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.015, 0.015, 1, 8]} />
+                <meshStandardMaterial color="#6666ff" metalness={0.6} roughness={0.3} />
+            </mesh>
+            {/* Left edge */}
+            <mesh position={[0, 0.5, 0]}>
+                <cylinderGeometry args={[0.015, 0.015, 1, 8]} />
+                <meshStandardMaterial color="#ff6600" metalness={0.6} roughness={0.3} />
+            </mesh>
+            {/* Right edge */}
+            <mesh position={[1, 0.5, 0]}>
+                <cylinderGeometry args={[0.015, 0.015, 1, 8]} />
+                <meshStandardMaterial color="#00ff66" metalness={0.6} roughness={0.3} />
+            </mesh>
+
+            {/* Corner vertices */}
+            {[
+                [0, 0, 0], [1, 0, 0],
+                [0, 1, 0], [1, 1, 0]
+            ].map((pos, i) => (
+                <mesh key={i} position={pos as [number, number, number]}>
+                    <sphereGeometry args={[0.05, 16, 16]} />
+                    <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
+                </mesh>
+            ))}
+        </group>
+    )
+}
+
+// A single solid square at a given position
+function PositionedSquare({ position, color }: { position: [number, number, number], color: string }) {
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: true,
+        opacity: 0.9,
+    }), [texture, color])
+
+    return (
+        <group position={position}>
+            {/* Filled square face */}
+            <mesh position={[0.5, 0.5, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+
+            {/* Edge lines */}
+            <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+            </mesh>
+            <mesh position={[0.5, 1, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+            </mesh>
+            <mesh position={[0, 0.5, 0]}>
+                <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+            </mesh>
+            <mesh position={[1, 0.5, 0]}>
+                <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+            </mesh>
+
+            {/* Corner vertices */}
+            {[
+                [0, 0, 0], [1, 0, 0],
+                [0, 1, 0], [1, 1, 0]
+            ].map((pos, i) => (
+                <mesh key={i} position={pos as [number, number, number]}>
+                    <sphereGeometry args={[0.04, 16, 16]} />
+                    <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
+                </mesh>
+            ))}
+        </group>
+    )
+}
+
+// Stage 6: 4 squares easing in from infinity, each touching a side of the central square
+function Stage6Squares({ progress }: { progress: number }) {
+    // Ease out cubic for smooth deceleration
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+    // Distance from infinity (starts at 10, ends at 0)
+    const offset = 10 * (1 - easedProgress)
+
+    // Final positions for each square (corner positions):
+    // +X square: (1, 0) to (2, 1) - touching right side
+    // -X square: (-1, 0) to (0, 1) - touching left side
+    // +Y square: (0, 1) to (1, 2) - touching top side
+    // -Y square: (0, -1) to (1, 0) - touching bottom side
+
+    return (
+        <>
+            {/* Central square stays in place */}
+            <SolidSquare />
+
+            {/* +X square easing from right */}
+            <PositionedSquare position={[1 + offset, 0, 0]} color="#f39494" />
+
+            {/* -X square easing from left */}
+            <PositionedSquare position={[-1 - offset, 0, 0]} color="#c40707" />
+
+            {/* +Y square easing from top */}
+            <PositionedSquare position={[0, 1 + offset, 0]} color="#57f157" />
+
+            {/* -Y square easing from bottom */}
+            <PositionedSquare position={[0, -1 - offset, 0]} color="#048004" />
+        </>
+    )
+}
+
+// Stage 7: 6th square easing from +X to position (2,0)-(3,1)
+function Stage7Square({ progress }: { progress: number }) {
+    // Ease out cubic for smooth deceleration
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+    // Distance from infinity (starts at 10, ends at 0)
+    const offset = 10 * (1 - easedProgress)
+
+    return (
+        <>
+            {/* All 5 squares from Stage 6 stay in place */}
+            <SolidSquare />
+            <PositionedSquare position={[1, 0, 0]} color="#f39494" />
+            <PositionedSquare position={[-1, 0, 0]} color="#c40707" />
+            <PositionedSquare position={[0, 1, 0]} color="#57f157" />
+            <PositionedSquare position={[0, -1, 0]} color="#048004" />
+
+            {/* 6th square easing from +X to (2,0)-(3,1) */}
+            <PositionedSquare position={[2 + offset, 0, 0]} color="#f39494" />
+        </>
+    )
+}
+
+// A rotating square that folds about an axis
+function RotatingSquare({
+    basePosition,
+    pivotOffset,
+    rotationAxis,
+    angle,
+    color
+}: {
+    basePosition: [number, number, number]
+    pivotOffset: [number, number, number]
+    rotationAxis: 'x' | 'y'
+    angle: number
+    color: string
+}) {
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: true,
+        opacity: 0.9,
+    }), [texture, color])
+
+    const angleRad = (angle * Math.PI) / 180
+    const rotation: [number, number, number] = rotationAxis === 'x'
+        ? [angleRad, 0, 0]
+        : [0, -angleRad, 0]
+
+    return (
+        <group position={basePosition}>
+            <group position={pivotOffset} rotation={rotation}>
+                <group position={[-pivotOffset[0], -pivotOffset[1], -pivotOffset[2]]}>
+                    {/* Filled square face */}
+                    <mesh position={[0.5, 0.5, 0]} material={material}>
+                        <planeGeometry args={[1, 1]} />
+                    </mesh>
+
+                    {/* Edge lines */}
+                    <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                        <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+                    </mesh>
+                    <mesh position={[0.5, 1, 0]} rotation={[0, 0, -Math.PI / 2]}>
+                        <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+                    </mesh>
+                    <mesh position={[0, 0.5, 0]}>
+                        <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+                    </mesh>
+                    <mesh position={[1, 0.5, 0]}>
+                        <cylinderGeometry args={[0.012, 0.012, 1, 8]} />
+                        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+                    </mesh>
+
+                    {/* Corner vertices */}
+                    {[
+                        [0, 0, 0], [1, 0, 0],
+                        [0, 1, 0], [1, 1, 0]
+                    ].map((pos, i) => (
+                        <mesh key={i} position={pos as [number, number, number]}>
+                            <sphereGeometry args={[0.04, 16, 16]} />
+                            <meshStandardMaterial color="white" emissive="#444444" metalness={0.6} roughness={0.3} />
+                        </mesh>
+                    ))}
+                </group>
+            </group>
+        </group>
+    )
+}
+
+// Stage 8: All 5 surrounding squares fold 90° into Z-axis
+function Stage8Rotation({ progress }: { progress: number }) {
+    // Ease in-out for smooth rotation
+    const easedProgress = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+    const rotationAngle = easedProgress * 90 // 0 to 90 degrees
+
+    return (
+        <>
+            {/* Central square stays flat */}
+            <SolidSquare />
+
+            {/* +X square at (1,0)-(2,1): rotates about X=1 line (left edge) */}
+            <RotatingSquare
+                basePosition={[1, 0, 0]}
+                pivotOffset={[0, 0.5, 0]}
+                rotationAxis="y"
+                angle={rotationAngle}
+                color="#f39494"
+            />
+
+            {/* -X square at (-1,0)-(0,1): rotates about X=0 line (right edge) */}
+            <RotatingSquare
+                basePosition={[-1, 0, 0]}
+                pivotOffset={[1, 0.5, 0]}
+                rotationAxis="y"
+                angle={-rotationAngle}
+                color="#c40707"
+            />
+
+            {/* +Y square at (0,1)-(1,2): rotates about Y=1 line (bottom edge) into +Z */}
+            <RotatingSquare
+                basePosition={[0, 1, 0]}
+                pivotOffset={[0.5, 0, 0]}
+                rotationAxis="x"
+                angle={rotationAngle}
+                color="#57f157"
+            />
+
+            {/* -Y square at (0,-1)-(1,0): rotates about Y=0 line (top edge) into +Z */}
+            <RotatingSquare
+                basePosition={[0, -1, 0]}
+                pivotOffset={[0.5, 1, 0]}
+                rotationAxis="x"
+                angle={-rotationAngle}
+                color="#048004"
+            />
+
+            {/* 6th square at (2,0)-(3,1): rotates about X=1 line */}
+            <RotatingSquare
+                basePosition={[2, 0, 0]}
+                pivotOffset={[-1, 0.5, 0]}
+                rotationAxis="y"
+                angle={rotationAngle}
+                color="#f39494"
+            />
+        </>
+    )
+}
+
+// Stage 9: Final square rotates 90° more to close the cube
+// After Stage 8, the 6th square is in the XZ plane at x=1, z=0 to z=1
+// It needs to rotate 90° about the line (x=1, z=1) to become the top face
+function Stage9Rotation({ progress }: { progress: number }) {
+    // Ease in-out for smooth rotation
+    const easedProgress = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+    const rotationAngle = easedProgress * 90 // 0 to 90 degrees
+
+    return (
+        <>
+            {/* Central square stays flat (bottom face) */}
+            <SolidSquare />
+
+            {/* +X square: already folded 90° into Z (now at z=0 to z=1, x=1) */}
+            <RotatingSquare
+                basePosition={[1, 0, 0]}
+                pivotOffset={[0, 0.5, 0]}
+                rotationAxis="y"
+                angle={90}
+                color="#f39494"
+            />
+
+            {/* -X square: already folded 90° into Z (now at z=0 to z=1, x=0) */}
+            <RotatingSquare
+                basePosition={[-1, 0, 0]}
+                pivotOffset={[1, 0.5, 0]}
+                rotationAxis="y"
+                angle={-90}
+                color="#c40707"
+            />
+
+            {/* +Y square: already folded 90° into Z (now at z=0 to z=1, y=1) */}
+            <RotatingSquare
+                basePosition={[0, 1, 0]}
+                pivotOffset={[0.5, 0, 0]}
+                rotationAxis="x"
+                angle={90}
+                color="#57f157"
+            />
+
+            {/* -Y square: already folded 90° into Z (now at z=0 to z=1, y=0) */}
+            <RotatingSquare
+                basePosition={[0, -1, 0]}
+                pivotOffset={[0.5, 1, 0]}
+                rotationAxis="x"
+                angle={-90}
+                color="#048004"
+            />
+
+            {/* 6th square: rotates from XZ plane (after 90° from Stage 8) to XY plane at z=1 */}
+            {/* After Stage 8 it's at: x=1 to x=2, z=0 to z=1 (in XZ plane) */}
+            {/* It needs to fold onto z=1 plane, rotating about the Y-axis line at x=1, z=1 */}
+            <group position={[1, 0, 1]}>
+                <group rotation={[0, -rotationAngle * Math.PI / 180, 0]}>
+                    <group position={[-1, 0, -1]}>
+                        <RotatingSquare
+                            basePosition={[2, 0, 0]}
+                            pivotOffset={[-1, 0.5, 0]}
+                            rotationAxis="y"
+                            angle={90}
+                            color="#f39494"
+                        />
+                    </group>
+                </group>
+            </group>
+        </>
+    )
+}
+
+// Solid cube with metallic material - single color, no edges or vertices
+function SolidCube() {
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color: SQUARE_COLOR,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+    }), [texture])
+
+    // Cube faces: centered at (0.5, 0.5, 0.5) with size 1
+    return (
+        <group>
+            {/* Bottom face (z=0) */}
+            <mesh position={[0.5, 0.5, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Top face (z=1) */}
+            <mesh position={[0.5, 0.5, 1]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Front face (y=0) */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Back face (y=1) */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Left face (x=0) */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Right face (x=1) */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+        </group>
+    )
+}
+
+// A positioned cube at a given offset
+function PositionedCube({ position, color }: { position: [number, number, number], color: string }) {
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+    }), [texture, color])
+
+    return (
+        <group position={position}>
+            {/* Bottom face (z=0) */}
+            <mesh position={[0.5, 0.5, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Top face (z=1) */}
+            <mesh position={[0.5, 0.5, 1]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Front face (y=0) */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Back face (y=1) */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Left face (x=0) */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Right face (x=1) */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+        </group>
+    )
+}
+
+// Stage 11: 6 cubes ease in from infinity to touch each face
+function Stage11Cubes({ progress }: { progress: number }) {
+    // Ease out cubic for smooth deceleration
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+    // Distance from infinity (starts at 10, ends at 0)
+    const offset = 10 * (1 - easedProgress)
+
+    return (
+        <>
+            {/* Central cube stays in place */}
+            <SolidCube />
+
+            {/* +X cube easing from right */}
+            <PositionedCube position={[1 + offset, 0, 0]} color="#f39494" />
+
+            {/* -X cube easing from left */}
+            <PositionedCube position={[-1 - offset, 0, 0]} color="#c40707" />
+
+            {/* +Y cube easing from back */}
+            <PositionedCube position={[0, 1 + offset, 0]} color="#57f157" />
+
+            {/* -Y cube easing from front */}
+            <PositionedCube position={[0, -1 - offset, 0]} color="#048004" />
+
+            {/* +Z cube easing from top */}
+            <PositionedCube position={[0, 0, 1 + offset]} color="#9494f3" />
+
+            {/* -Z cube easing from bottom */}
+            <PositionedCube position={[0, 0, -1 - offset]} color="#0707c4" />
+        </>
+    )
+}
+
+// Stage 12: 8th cube easing from +X to position (2,0,0)-(3,1,1)
+function Stage12Cube({ progress }: { progress: number }) {
+    // Ease out cubic for smooth deceleration
+    const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+    // Distance from infinity (starts at 10, ends at 0)
+    const offset = 10 * (1 - easedProgress)
+
+    return (
+        <>
+            {/* All 7 cubes from Stage 11 stay in place */}
+            <SolidCube />
+            <PositionedCube position={[1, 0, 0]} color="#f39494" />
+            <PositionedCube position={[-1, 0, 0]} color="#c40707" />
+            <PositionedCube position={[0, 1, 0]} color="#57f157" />
+            <PositionedCube position={[0, -1, 0]} color="#048004" />
+            <PositionedCube position={[0, 0, 1]} color="#9494f3" />
+            <PositionedCube position={[0, 0, -1]} color="#0707c4" />
+
+            {/* 8th cube easing from +X to (2,0,0)-(3,1,1) */}
+            <PositionedCube position={[2 + offset, 0, 0]} color="#f39494" />
+        </>
+    )
+}
+
+// A cube that can be "rotated" into the W dimension
+// This is visualized by translating/morphing the cube
+function WRotatingCube({
+    basePosition,
+    rotationAxis,
+    angle,
+    color
+}: {
+    basePosition: [number, number, number]
+    rotationAxis: 'x' | 'y' | 'z'
+    angle: number // 0 to 90
+    color: string
+}) {
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    const material = useMemo(() => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: true,
+        opacity: 0.9,
+    }), [texture, color])
+
+    // As the cube rotates into W, we simulate this by:
+    // 1. Shrinking along the rotation axis
+    // 2. Moving toward the central cube
+    const progress = angle / 90 // 0 to 1
+    const scale = 1 - progress // Shrink to 0 as it rotates into W
+
+    // Calculate position offset - move toward center as it rotates
+    let position: [number, number, number] = [...basePosition]
+    let scaleVec: [number, number, number] = [1, 1, 1]
+
+    if (rotationAxis === 'x') {
+        position[0] = basePosition[0] * (1 - progress)
+        scaleVec = [scale, 1, 1]
+    } else if (rotationAxis === 'y') {
+        position[1] = basePosition[1] * (1 - progress)
+        scaleVec = [1, scale, 1]
+    } else {
+        position[2] = basePosition[2] * (1 - progress)
+        scaleVec = [1, 1, scale]
+    }
+
+    if (scale < 0.01) return null // Don't render when fully rotated
+
+    return (
+        <group position={position} scale={scaleVec}>
+            {/* Bottom face (z=0) */}
+            <mesh position={[0.5, 0.5, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Top face (z=1) */}
+            <mesh position={[0.5, 0.5, 1]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Front face (y=0) */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Back face (y=1) */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Left face (x=0) */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Right face (x=1) */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]} material={material}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+        </group>
+    )
+}
+
+// Stage 13: All 7 surrounding cubes fold 90° into W-axis to form tesseract
+function Stage13Rotation({ progress }: { progress: number }) {
+    // Ease in-out for smooth rotation
+    const easedProgress = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+    const rotationAngle = easedProgress * 90 // 0 to 90 degrees
+
+    return (
+        <>
+            {/* Central cube stays at w=0 */}
+            <SolidCube />
+
+            {/* +X cube: folds into W about x=1 */}
+            <WRotatingCube
+                basePosition={[1, 0, 0]}
+                rotationAxis="x"
+                angle={rotationAngle}
+                color="#f39494"
+            />
+
+            {/* -X cube: folds into W about x=0 */}
+            <WRotatingCube
+                basePosition={[-1, 0, 0]}
+                rotationAxis="x"
+                angle={rotationAngle}
+                color="#c40707"
+            />
+
+            {/* +Y cube: folds into W about y=1 */}
+            <WRotatingCube
+                basePosition={[0, 1, 0]}
+                rotationAxis="y"
+                angle={rotationAngle}
+                color="#57f157"
+            />
+
+            {/* -Y cube: folds into W about y=0 */}
+            <WRotatingCube
+                basePosition={[0, -1, 0]}
+                rotationAxis="y"
+                angle={rotationAngle}
+                color="#048004"
+            />
+
+            {/* +Z cube: folds into W about z=1 */}
+            <WRotatingCube
+                basePosition={[0, 0, 1]}
+                rotationAxis="z"
+                angle={rotationAngle}
+                color="#9494f3"
+            />
+
+            {/* -Z cube: folds into W about z=0 */}
+            <WRotatingCube
+                basePosition={[0, 0, -1]}
+                rotationAxis="z"
+                angle={rotationAngle}
+                color="#0707c4"
+            />
+
+            {/* 8th cube: folds into W about x=1 (like +X cube) */}
+            <WRotatingCube
+                basePosition={[2, 0, 0]}
+                rotationAxis="x"
+                angle={rotationAngle}
+                color="#f39494"
+            />
+        </>
+    )
+}
+
 export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: Scene7Props) {
     const groupRef = useRef<THREE.Group>(null)
     const lastStageRef = useRef(stage)
@@ -420,8 +1210,32 @@ export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: 
             {/* Stage 4: Line 4 rotates 90° CCW to close the square */}
             {stage === 4 && <Stage4Rotation progress={effectiveProgress} />}
 
-            {/* Stage 5: Filled solid square */}
-            {stage >= 5 && <SolidSquare />}
+            {/* Stage 5: Solid filled square */}
+            {stage === 5 && <SolidSquare />}
+
+            {/* Stage 6: 4 squares easing in from infinity */}
+            {stage === 6 && <Stage6Squares progress={effectiveProgress} />}
+
+            {/* Stage 7: 6th square easing from +X */}
+            {stage === 7 && <Stage7Square progress={effectiveProgress} />}
+
+            {/* Stage 8: All squares fold into Z-axis forming cube */}
+            {stage === 8 && <Stage8Rotation progress={effectiveProgress} />}
+
+            {/* Stage 9: Final square rotates to close the cube */}
+            {stage === 9 && <Stage9Rotation progress={effectiveProgress} />}
+
+            {/* Stage 10: Solid single-color cube */}
+            {stage === 10 && <SolidCube />}
+
+            {/* Stage 11: 6 cubes ease in from infinity */}
+            {stage === 11 && <Stage11Cubes progress={effectiveProgress} />}
+
+            {/* Stage 12: 8th cube easing from +X */}
+            {stage === 12 && <Stage12Cube progress={effectiveProgress} />}
+
+            {/* Stage 13+: Cubes fold into W-axis forming tesseract */}
+            {stage >= 13 && <Stage13Rotation progress={effectiveProgress} />}
         </group>
     )
 }
