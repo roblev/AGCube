@@ -8,6 +8,7 @@ import { Scene4, Scene4UI } from './components/Scene4'
 import { Scene5, Scene5UI } from './components/Scene5'
 import { Scene6, Scene6UI } from './components/Scene6'
 import { Scene7, Scene7UI } from './components/Scene7'
+import { Scene8, Scene8UI } from './components/Scene8'
 
 function App() {
   const [activeScene, setActiveScene] = useState(1)
@@ -29,6 +30,7 @@ function App() {
   const [scene7Stage, setScene7Stage] = useState(0) // For Scene 7 stage (0-4)
   const [scene7AnimProgress, setScene7AnimProgress] = useState(0) // For Scene 7 animation progress
   const [scene7W, setScene7W] = useState(0) // For Scene 7 w-axis value
+  const [scene8VisibleCurves, setScene8VisibleCurves] = useState(0) // For Scene 8 visible curves
 
   // Keyboard handlers
   useEffect(() => {
@@ -161,6 +163,12 @@ function App() {
         setScene7AnimProgress(0) // Reset animation progress
       }
 
+      // Spacebar handler - Scene 8 specific (show next curve)
+      if (e.code === 'Space' && activeScene === 8) {
+        e.preventDefault()
+        setScene8VisibleCurves((prev) => prev >= 15 ? 0 : prev + 1)
+      }
+
       // Arrow key handlers - Scene 7 specific (w-axis navigation when stage >= 13)
       if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && activeScene === 7 && scene7Stage >= 13) {
         e.preventDefault()
@@ -196,6 +204,7 @@ function App() {
           {activeScene === 5 && <Scene5 w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} resetTrigger={scene5ResetTrigger} />}
           {activeScene === 6 && <Scene6 stage={scene6Stage} animProgress={scene6AnimProgress} setAnimProgress={setScene6AnimProgress} />}
           {activeScene === 7 && <Scene7 stage={scene7Stage} animProgress={scene7AnimProgress} setAnimProgress={setScene7AnimProgress} w={scene7W} setW={setScene7W} />}
+          {activeScene === 8 && <Scene8 />}
 
           {/* Shared Controls */}
           <OrbitControls makeDefault />
@@ -219,6 +228,7 @@ function App() {
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
         {activeScene === 6 && <Scene6UI stage={scene6Stage} />}
         {activeScene === 7 && <Scene7UI stage={scene7Stage} w={scene7W} setW={setScene7W} />}
+        {activeScene === 8 && <Scene8UI visibleCurves={scene8VisibleCurves} />}
       </div>
     </div>
   )
