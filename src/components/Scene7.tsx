@@ -7,7 +7,7 @@ import * as THREE from 'three'
 const ANIMATION_DURATION = 2.0
 
 // Stage names for UI
-const STAGE_NAMES = ['Line 1: +∞ → [0,1]', 'Lines 2-3: → 3 segments', 'Line 4: → 4 segments', 'Rotate All', 'Close Square', 'Fill Square', 'Add 4 Squares', '6th Square', 'Fold into Cube', 'Close Cube', 'Solid Cube', 'Add 6 Cubes', '8th Cube', 'Fold into Tesseract']
+const STAGE_NAMES = ['Ready', 'Line 1: +∞ → [0,1]', 'Lines 2-3: → 3 segments', 'Line 4: → 4 segments', 'Rotate All', 'Close Square', 'Fill Square', 'Add 4 Squares', '6th Square', 'Fold into Cube', 'Close Cube', 'Solid Cube', 'Add 6 Cubes', '8th Cube', 'Fold into Tesseract', 'Close Tesseract']
 
 // Face color for solid square (dark blue - matching Scene 1 back face)
 const SQUARE_COLOR = '#00008b'
@@ -19,6 +19,8 @@ interface Scene7Props {
     stage: number
     animProgress: number
     setAnimProgress: (value: number) => void
+    w: number
+    setW: (value: number) => void
 }
 
 // Axes component (similar to Scene6 but without the central vertex)
@@ -949,12 +951,18 @@ function Stage11Cubes({ progress }: { progress: number }) {
 }
 
 // Stage 12: 8th cube easing from +X to position (2,0,0)-(3,1,1)
-function Stage12Cube({ progress }: { progress: number }) {
+// Only shows cubes when w=0, blank for all other w values
+function Stage12Cube({ progress, w }: { progress: number, w: number }) {
     // Ease out cubic for smooth deceleration
     const easedProgress = 1 - Math.pow(1 - progress, 3)
 
     // Distance from infinity (starts at 10, ends at 0)
     const offset = 10 * (1 - easedProgress)
+
+    // Only show cubes when w is exactly 0
+    const showCubes = Math.abs(w - 0) < 0.01
+
+    if (!showCubes) return null
 
     return (
         <>
@@ -1076,7 +1084,8 @@ function WRotatingCube({
 }
 
 // Stage 13: All 7 surrounding cubes fold 90° into W-axis to form tesseract
-function Stage13Rotation({ progress }: { progress: number }) {
+// Shows cubes based on w value - as cubes fold into W, they appear at different w values
+function Stage13Rotation({ progress, w }: { progress: number, w: number }) {
     // Ease in-out for smooth rotation
     const easedProgress = progress < 0.5
         ? 2 * progress * progress
@@ -1084,71 +1093,331 @@ function Stage13Rotation({ progress }: { progress: number }) {
 
     const rotationAngle = easedProgress * 90 // 0 to 90 degrees
 
+    // Create bump texture for metallic look
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    // Face colors matching the folding cubes
+    const faceColors = {
+        right: '#f39494',   // +X: light red
+        left: '#c40707',    // -X: dark red  
+        top: '#57f157',     // +Y: light green
+        bottom: '#048004',  // -Y: dark green
+        front: '#7185f1',   // +Z: light blue
+        back: '#00008b',    // -Z: dark blue
+    }
+
+    // Create materials for each face
+    const createMaterial = (color: string, opacity: number = 0.9) => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: true,
+        opacity,
+    })
+
+    // Render colored cube with 6 faces (for w between 0 and 1)
+    const renderColoredCube = () => (
+        <group>
+            {/* Bottom face (z=0) - dark blue */}
+            <mesh position={[0.5, 0.5, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.back).clone()} />
+            </mesh>
+            {/* Top face (z=1) - light blue */}
+            <mesh position={[0.5, 0.5, 1]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.front).clone()} />
+            </mesh>
+            {/* Front face (y=0) - dark green */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.bottom).clone()} />
+            </mesh>
+            {/* Back face (y=1) - light green */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.top).clone()} />
+            </mesh>
+            {/* Left face (x=0) - dark red */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.left).clone()} />
+            </mesh>
+            {/* Right face (x=1) - light red */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.right).clone()} />
+            </mesh>
+        </group>
+    )
+
+    // Render single light grey face in +X position (for w between 1 and 2) - transparent like other faces
+    const renderGreyFace = () => (
+        <group>
+            {/* Single light grey face at x=1 position (where light red face was) */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial('#eeeeee', 0.9).clone()} />
+            </mesh>
+        </group>
+    )
+
+    // Determine what to show based on w value
+    const showAtW0 = Math.abs(w - 0) < 0.01
+    const showBetween0And1 = w > 0.01 && w < 0.99
+    const showBetween1And2 = w >= 0.99 && w < 2
+
     return (
         <>
-            {/* Central cube stays at w=0 */}
-            <SolidCube />
+            {/* At w=0: Show central cube with folding animation */}
+            {showAtW0 && (
+                <>
+                    <SolidCube />
 
-            {/* +X cube: folds into W about x=1 */}
-            <WRotatingCube
-                basePosition={[1, 0, 0]}
-                rotationAxis="x"
-                angle={rotationAngle}
-                color="#f39494"
-            />
+                    {/* +X cube: folds into W about x=1 */}
+                    <WRotatingCube
+                        basePosition={[1, 0, 0]}
+                        rotationAxis="x"
+                        angle={rotationAngle}
+                        color="#f39494"
+                    />
 
-            {/* -X cube: folds into W about x=0 */}
-            <WRotatingCube
-                basePosition={[-1, 0, 0]}
-                rotationAxis="x"
-                angle={rotationAngle}
-                color="#c40707"
-            />
+                    {/* -X cube: folds into W about x=0 */}
+                    <WRotatingCube
+                        basePosition={[-1, 0, 0]}
+                        rotationAxis="x"
+                        angle={rotationAngle}
+                        color="#c40707"
+                    />
 
-            {/* +Y cube: folds into W about y=1 */}
-            <WRotatingCube
-                basePosition={[0, 1, 0]}
-                rotationAxis="y"
-                angle={rotationAngle}
-                color="#57f157"
-            />
+                    {/* +Y cube: folds into W about y=1 */}
+                    <WRotatingCube
+                        basePosition={[0, 1, 0]}
+                        rotationAxis="y"
+                        angle={rotationAngle}
+                        color="#57f157"
+                    />
 
-            {/* -Y cube: folds into W about y=0 */}
-            <WRotatingCube
-                basePosition={[0, -1, 0]}
-                rotationAxis="y"
-                angle={rotationAngle}
-                color="#048004"
-            />
+                    {/* -Y cube: folds into W about y=0 */}
+                    <WRotatingCube
+                        basePosition={[0, -1, 0]}
+                        rotationAxis="y"
+                        angle={rotationAngle}
+                        color="#048004"
+                    />
 
-            {/* +Z cube: folds into W about z=1 */}
-            <WRotatingCube
-                basePosition={[0, 0, 1]}
-                rotationAxis="z"
-                angle={rotationAngle}
-                color="#7185f1"
-            />
+                    {/* +Z cube: folds into W about z=1 */}
+                    <WRotatingCube
+                        basePosition={[0, 0, 1]}
+                        rotationAxis="z"
+                        angle={rotationAngle}
+                        color="#7185f1"
+                    />
 
-            {/* -Z cube: folds into W about z=0 */}
-            <WRotatingCube
-                basePosition={[0, 0, -1]}
-                rotationAxis="z"
-                angle={rotationAngle}
-                color="#00008b"
-            />
+                    {/* -Z cube: folds into W about z=0 */}
+                    <WRotatingCube
+                        basePosition={[0, 0, -1]}
+                        rotationAxis="z"
+                        angle={rotationAngle}
+                        color="#00008b"
+                    />
 
-            {/* 8th cube: folds into W about x=1 (like +X cube) */}
-            <WRotatingCube
-                basePosition={[2, 0, 0]}
-                rotationAxis="x"
-                angle={rotationAngle}
-                color="#eeeeee"
-            />
+                    {/* 8th cube: folds into W about x=1 (like +X cube) */}
+                    <WRotatingCube
+                        basePosition={[2, 0, 0]}
+                        rotationAxis="x"
+                        angle={rotationAngle}
+                        color="#eeeeee"
+                    />
+                </>
+            )}
+
+            {/* Between w=0 and w=1: Show colored cube similar to Scene 1 */}
+            {showBetween0And1 && renderColoredCube()}
+
+            {/* Between w=1 and w=2: Show only light grey face at +X position */}
+            {showBetween1And2 && renderGreyFace()}
         </>
     )
 }
 
-export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: Scene7Props) {
+// Stage 14: Closed tesseract - shows completed tesseract structure
+// At w=0: colored cube, at w=1: light grey solid cube, w>1: blank
+function Stage14Complete({ w }: { w: number }) {
+    // Create bump texture for metallic look
+    const texture = useMemo(() => {
+        const size = 128
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+
+        const imageData = ctx.createImageData(size, size)
+        for (let i = 0; i < imageData.data.length; i += 4) {
+            const noise = Math.random() * 255
+            imageData.data[i] = noise
+            imageData.data[i + 1] = noise
+            imageData.data[i + 2] = noise
+            imageData.data[i + 3] = 255
+        }
+        ctx.putImageData(imageData, 0, 0)
+
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.wrapS = THREE.RepeatWrapping
+        tex.wrapT = THREE.RepeatWrapping
+        tex.repeat.set(4, 4)
+        return tex
+    }, [])
+
+    // Face colors matching the folding cubes
+    const faceColors = {
+        right: '#f39494',   // +X: light red
+        left: '#c40707',    // -X: dark red  
+        top: '#57f157',     // +Y: light green
+        bottom: '#048004',  // -Y: dark green
+        front: '#7185f1',   // +Z: light blue
+        back: '#00008b',    // -Z: dark blue
+    }
+
+    // Create material for a face
+    const createMaterial = (color: string, opacity: number = 0.9) => new THREE.MeshStandardMaterial({
+        color,
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+        transparent: opacity < 1,
+        opacity,
+    })
+
+    // Light grey solid cube material
+    const greyMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+        color: '#eeeeee',
+        side: THREE.DoubleSide,
+        roughness: 0.2,
+        metalness: 0.8,
+        bumpMap: texture,
+        bumpScale: 0.3,
+        roughnessMap: texture,
+    }), [texture])
+
+    // Render colored cube with 6 faces (for w between 0 and 1)
+    const renderColoredCube = () => (
+        <group>
+            {/* Bottom face (z=0) - dark blue */}
+            <mesh position={[0.5, 0.5, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.back).clone()} />
+            </mesh>
+            {/* Top face (z=1) - light blue */}
+            <mesh position={[0.5, 0.5, 1]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.front).clone()} />
+            </mesh>
+            {/* Front face (y=0) - dark green */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.bottom).clone()} />
+            </mesh>
+            {/* Back face (y=1) - light green */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.top).clone()} />
+            </mesh>
+            {/* Left face (x=0) - dark red */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.left).clone()} />
+            </mesh>
+            {/* Right face (x=1) - light red */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]}>
+                <planeGeometry args={[1, 1]} />
+                <meshStandardMaterial {...createMaterial(faceColors.right).clone()} />
+            </mesh>
+        </group>
+    )
+
+    // Render solid light grey cube (for w = 1)
+    const renderGreyCube = () => (
+        <group>
+            {/* Bottom face (z=0) */}
+            <mesh position={[0.5, 0.5, 0]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Top face (z=1) */}
+            <mesh position={[0.5, 0.5, 1]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Front face (y=0) */}
+            <mesh position={[0.5, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Back face (y=1) */}
+            <mesh position={[0.5, 1, 0.5]} rotation={[-Math.PI / 2, 0, 0]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Left face (x=0) */}
+            <mesh position={[0, 0.5, 0.5]} rotation={[0, -Math.PI / 2, 0]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+            {/* Right face (x=1) */}
+            <mesh position={[1, 0.5, 0.5]} rotation={[0, Math.PI / 2, 0]} material={greyMaterial}>
+                <planeGeometry args={[1, 1]} />
+            </mesh>
+        </group>
+    )
+
+    // Determine what to show based on w value
+    const showAtW0 = Math.abs(w - 0) < 0.01
+    const showBetween0And1 = w > 0.01 && w < 0.99
+    const showAtW1 = Math.abs(w - 1) < 0.01
+
+    // w > 1 shows nothing (blank)
+    if (w > 1.01) return null
+
+    return (
+        <>
+            {/* At w=0: Show colored cube (central cube of tesseract) */}
+            {showAtW0 && <SolidCube />}
+
+            {/* Between w=0 and w=1: Show colored cube similar to Scene 1 */}
+            {showBetween0And1 && renderColoredCube()}
+
+            {/* At w=1: Show solid light grey cube (the 8th cube that closed the tesseract) */}
+            {showAtW1 && renderGreyCube()}
+        </>
+    )
+}
+
+export function Scene7({ stage, animProgress: _animProgress, setAnimProgress, w }: Scene7Props) {
     const groupRef = useRef<THREE.Group>(null)
     const lastStageRef = useRef(stage)
     const localProgressRef = useRef(0)
@@ -1182,11 +1451,14 @@ export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: 
             {/* Axes */}
             <Axes scale={1} />
 
-            {/* Stage 0: Line 1 animates in from +∞ */}
-            {stage === 0 && <Stage0Line progress={effectiveProgress} />}
+            {/* Stage 0: Blank - waiting for spacebar */}
+            {/* (No content rendered for stage 0) */}
 
-            {/* Stage 1: Lines 2 & 3 animate in, plus completed Line 1 */}
-            {stage === 1 && (
+            {/* Stage 1: Line 1 animates in from +∞ */}
+            {stage === 1 && <Stage0Line progress={effectiveProgress} />}
+
+            {/* Stage 2: Lines 2 & 3 animate in, plus completed Line 1 */}
+            {stage === 2 && (
                 <>
                     {/* Line 1: already arrived at [0, 1] */}
                     <LineSegment start={[0, 0, 0]} end={[1, 0, 0]} color="#ffcc00" />
@@ -1195,8 +1467,8 @@ export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: 
                 </>
             )}
 
-            {/* Stage 2: Line 4 animates in, plus all previous lines */}
-            {stage === 2 && (
+            {/* Stage 3: Line 4 animates in, plus all previous lines */}
+            {stage === 3 && (
                 <>
                     {/* Lines 1-3: already in place */}
                     <LineSegment start={[0, 0, 0]} end={[1, 0, 0]} color="#ffcc00" />
@@ -1207,38 +1479,41 @@ export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: 
                 </>
             )}
 
-            {/* Stage 3: All lines rotate around their pivot points */}
-            {stage === 3 && <Stage3Rotation progress={effectiveProgress} />}
+            {/* Stage 4: All lines rotate around their pivot points */}
+            {stage === 4 && <Stage3Rotation progress={effectiveProgress} />}
 
-            {/* Stage 4: Line 4 rotates 90° CCW to close the square */}
-            {stage === 4 && <Stage4Rotation progress={effectiveProgress} />}
+            {/* Stage 5: Line 4 rotates 90° CCW to close the square */}
+            {stage === 5 && <Stage4Rotation progress={effectiveProgress} />}
 
-            {/* Stage 5: Solid filled square */}
-            {stage === 5 && <SolidSquare />}
+            {/* Stage 6: Solid filled square */}
+            {stage === 6 && <SolidSquare />}
 
-            {/* Stage 6: 4 squares easing in from infinity */}
-            {stage === 6 && <Stage6Squares progress={effectiveProgress} />}
+            {/* Stage 7: 4 squares easing in from infinity */}
+            {stage === 7 && <Stage6Squares progress={effectiveProgress} />}
 
-            {/* Stage 7: 6th square easing from +X */}
-            {stage === 7 && <Stage7Square progress={effectiveProgress} />}
+            {/* Stage 8: 6th square easing from +X */}
+            {stage === 8 && <Stage7Square progress={effectiveProgress} />}
 
-            {/* Stage 8: All squares fold into Z-axis forming cube */}
-            {stage === 8 && <Stage8Rotation progress={effectiveProgress} />}
+            {/* Stage 9: All squares fold into Z-axis forming cube */}
+            {stage === 9 && <Stage8Rotation progress={effectiveProgress} />}
 
-            {/* Stage 9: Final square rotates to close the cube */}
-            {stage === 9 && <Stage9Rotation progress={effectiveProgress} />}
+            {/* Stage 10: Final square rotates to close the cube */}
+            {stage === 10 && <Stage9Rotation progress={effectiveProgress} />}
 
-            {/* Stage 10: Solid single-color cube */}
-            {stage === 10 && <SolidCube />}
+            {/* Stage 11: Solid single-color cube */}
+            {stage === 11 && <SolidCube />}
 
-            {/* Stage 11: 6 cubes ease in from infinity */}
-            {stage === 11 && <Stage11Cubes progress={effectiveProgress} />}
+            {/* Stage 12: 6 cubes ease in from infinity */}
+            {stage === 12 && <Stage11Cubes progress={effectiveProgress} />}
 
-            {/* Stage 12: 8th cube easing from +X */}
-            {stage === 12 && <Stage12Cube progress={effectiveProgress} />}
+            {/* Stage 13: 8th cube easing from +X */}
+            {stage === 13 && <Stage12Cube progress={effectiveProgress} w={w} />}
 
-            {/* Stage 13+: Cubes fold into W-axis forming tesseract */}
-            {stage >= 13 && <Stage13Rotation progress={effectiveProgress} />}
+            {/* Stage 14: Cubes fold into W-axis forming tesseract */}
+            {stage === 14 && <Stage13Rotation progress={effectiveProgress} w={w} />}
+
+            {/* Stage 15: Closed tesseract - light grey cube at w=1, blank for w>1 */}
+            {stage >= 15 && <Stage14Complete w={w} />}
         </group>
     )
 }
@@ -1246,14 +1521,42 @@ export function Scene7({ stage, animProgress: _animProgress, setAnimProgress }: 
 // Scene 7 UI Overlay
 interface Scene7UIProps {
     stage: number
+    w: number
+    setW: (value: number) => void
 }
 
-export function Scene7UI({ stage }: Scene7UIProps) {
+export function Scene7UI({ stage, w, setW }: Scene7UIProps) {
     return (
-        <div className="glass-card title-card">
-            <h1>Square from Rotations</h1>
-            <p>Stage {stage}: <strong>{STAGE_NAMES[stage] || 'Complete'}</strong></p>
-            <p style={{ opacity: 0.6, fontSize: '12px' }}>Space: next stage</p>
-        </div>
+        <>
+            <div className="glass-card title-card">
+                <h1>Point to Tesseract</h1>
+                <p>Stage {stage}: <strong>{STAGE_NAMES[stage] || 'Complete'}</strong></p>
+                <p style={{ opacity: 0.6, fontSize: '12px' }}>Space: next stage</p>
+                {stage >= 13 && <p style={{ opacity: 0.6, fontSize: '12px' }}>Arrow keys: adjust W-axis</p>}
+            </div>
+
+            {/* W-axis slider (only shown for stage >= 13) */}
+            {stage >= 13 && (
+                <div className="glass-card">
+                    <div className="control-group">
+                        <div className="slider-label">
+                            <span>W-axis value</span>
+                            <span className={`slider-value ${w === 0 || w === 1 ? 'highlight' : ''}`}>
+                                {w.toFixed(2)}
+                            </span>
+                        </div>
+                        <input
+                            type="range"
+                            min="-1"
+                            max="3"
+                            step="0.05"
+                            value={w}
+                            onChange={(e) => setW(parseFloat(e.target.value))}
+                            className="custom-slider"
+                        />
+                    </div>
+                </div>
+            )}
+        </>
     )
 }

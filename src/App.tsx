@@ -28,6 +28,7 @@ function App() {
   const [scene6AnimProgress, setScene6AnimProgress] = useState(0) // For Scene 6 animation progress
   const [scene7Stage, setScene7Stage] = useState(0) // For Scene 7 stage (0-4)
   const [scene7AnimProgress, setScene7AnimProgress] = useState(0) // For Scene 7 animation progress
+  const [scene7W, setScene7W] = useState(0) // For Scene 7 w-axis value
 
   // Keyboard handlers
   useEffect(() => {
@@ -156,13 +157,23 @@ function App() {
       // Spacebar handler - Scene 7 specific (advance stage)
       if (e.code === 'Space' && activeScene === 7) {
         e.preventDefault()
-        setScene7Stage((prev) => (prev + 1) % 14) // Cycle through 0-13 (14 stages)
+        setScene7Stage((prev) => (prev + 1) % 16) // Cycle through 0-15 (16 stages)
         setScene7AnimProgress(0) // Reset animation progress
+      }
+
+      // Arrow key handlers - Scene 7 specific (w-axis navigation when stage >= 13)
+      if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && activeScene === 7 && scene7Stage >= 13) {
+        e.preventDefault()
+        if (e.code === 'ArrowLeft') {
+          setScene7W((prev) => Math.max(-1, Math.round((prev - 0.05) * 100) / 100))
+        } else if (e.code === 'ArrowRight') {
+          setScene7W((prev) => Math.min(3, Math.round((prev + 0.05) * 100) / 100))
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeScene])
+  }, [activeScene, scene7Stage])
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#111' }}>
@@ -184,7 +195,7 @@ function App() {
           {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
           {activeScene === 5 && <Scene5 w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} resetTrigger={scene5ResetTrigger} />}
           {activeScene === 6 && <Scene6 stage={scene6Stage} animProgress={scene6AnimProgress} setAnimProgress={setScene6AnimProgress} />}
-          {activeScene === 7 && <Scene7 stage={scene7Stage} animProgress={scene7AnimProgress} setAnimProgress={setScene7AnimProgress} />}
+          {activeScene === 7 && <Scene7 stage={scene7Stage} animProgress={scene7AnimProgress} setAnimProgress={setScene7AnimProgress} w={scene7W} setW={setScene7W} />}
 
           {/* Shared Controls */}
           <OrbitControls makeDefault />
@@ -207,7 +218,7 @@ function App() {
         {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} rotation={scene4Rotation} showArrows={scene4ShowArrows} />}
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
         {activeScene === 6 && <Scene6UI stage={scene6Stage} />}
-        {activeScene === 7 && <Scene7UI stage={scene7Stage} />}
+        {activeScene === 7 && <Scene7UI stage={scene7Stage} w={scene7W} setW={setScene7W} />}
       </div>
     </div>
   )
