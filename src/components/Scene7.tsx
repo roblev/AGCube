@@ -9,8 +9,11 @@ const ANIMATION_DURATION = 2.0
 // Stage names for UI
 const STAGE_NAMES = ['Line 1: +∞ → [0,1]', 'Lines 2-3: → 3 segments', 'Line 4: → 4 segments', 'Rotate All', 'Close Square', 'Fill Square', 'Add 4 Squares', '6th Square', 'Fold into Cube', 'Close Cube', 'Solid Cube', 'Add 6 Cubes', '8th Cube', 'Fold into Tesseract']
 
-// Face color matching Scene1's +Y face (light green)
-const SQUARE_COLOR = '#57f157'
+// Face color for solid square (dark blue - matching Scene 1 back face)
+const SQUARE_COLOR = '#00008b'
+
+// Face color for solid cube (dark grey)
+const CUBE_COLOR = '#666666'
 
 interface Scene7Props {
     stage: number
@@ -541,7 +544,7 @@ function Stage7Square({ progress }: { progress: number }) {
             <PositionedSquare position={[0, -1, 0]} color="#048004" />
 
             {/* 6th square easing from +X to (2,0)-(3,1) */}
-            <PositionedSquare position={[2 + offset, 0, 0]} color="#f39494" />
+            <PositionedSquare position={[2 + offset, 0, 0]} color="#7185f1" />
         </>
     )
 }
@@ -700,7 +703,7 @@ function Stage8Rotation({ progress }: { progress: number }) {
                 pivotOffset={[-1, 0.5, 0]}
                 rotationAxis="y"
                 angle={rotationAngle}
-                color="#f39494"
+                color="#7185f1"
             />
         </>
     )
@@ -769,7 +772,7 @@ function Stage9Rotation({ progress }: { progress: number }) {
                             pivotOffset={[-1, 0.5, 0]}
                             rotationAxis="y"
                             angle={90}
-                            color="#f39494"
+                            color="#7185f1"
                         />
                     </group>
                 </group>
@@ -805,7 +808,7 @@ function SolidCube() {
     }, [])
 
     const material = useMemo(() => new THREE.MeshStandardMaterial({
-        color: SQUARE_COLOR,
+        color: CUBE_COLOR,
         side: THREE.DoubleSide,
         roughness: 0.2,
         metalness: 0.8,
@@ -937,10 +940,10 @@ function Stage11Cubes({ progress }: { progress: number }) {
             <PositionedCube position={[0, -1 - offset, 0]} color="#048004" />
 
             {/* +Z cube easing from top */}
-            <PositionedCube position={[0, 0, 1 + offset]} color="#9494f3" />
+            <PositionedCube position={[0, 0, 1 + offset]} color="#7185f1" />
 
             {/* -Z cube easing from bottom */}
-            <PositionedCube position={[0, 0, -1 - offset]} color="#0707c4" />
+            <PositionedCube position={[0, 0, -1 - offset]} color="#00008b" />
         </>
     )
 }
@@ -961,11 +964,11 @@ function Stage12Cube({ progress }: { progress: number }) {
             <PositionedCube position={[-1, 0, 0]} color="#c40707" />
             <PositionedCube position={[0, 1, 0]} color="#57f157" />
             <PositionedCube position={[0, -1, 0]} color="#048004" />
-            <PositionedCube position={[0, 0, 1]} color="#9494f3" />
-            <PositionedCube position={[0, 0, -1]} color="#0707c4" />
+            <PositionedCube position={[0, 0, 1]} color="#7185f1" />
+            <PositionedCube position={[0, 0, -1]} color="#00008b" />
 
             {/* 8th cube easing from +X to (2,0,0)-(3,1,1) */}
-            <PositionedCube position={[2 + offset, 0, 0]} color="#f39494" />
+            <PositionedCube position={[2 + offset, 0, 0]} color="#eeeeee" />
         </>
     )
 }
@@ -1123,7 +1126,7 @@ function Stage13Rotation({ progress }: { progress: number }) {
                 basePosition={[0, 0, 1]}
                 rotationAxis="z"
                 angle={rotationAngle}
-                color="#9494f3"
+                color="#7185f1"
             />
 
             {/* -Z cube: folds into W about z=0 */}
@@ -1131,7 +1134,7 @@ function Stage13Rotation({ progress }: { progress: number }) {
                 basePosition={[0, 0, -1]}
                 rotationAxis="z"
                 angle={rotationAngle}
-                color="#0707c4"
+                color="#00008b"
             />
 
             {/* 8th cube: folds into W about x=1 (like +X cube) */}
@@ -1139,7 +1142,7 @@ function Stage13Rotation({ progress }: { progress: number }) {
                 basePosition={[2, 0, 0]}
                 rotationAxis="x"
                 angle={rotationAngle}
-                color="#f39494"
+                color="#eeeeee"
             />
         </>
     )
