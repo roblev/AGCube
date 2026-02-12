@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Scene1, Scene1UI } from './components/Scene1'
 import { Scene2, Scene2UI, ROTATION_MODES } from './components/Scene2'
+import { POLYTOPES_4D } from './components/polytopes4d'
 import { Scene3, Scene3UI, HYPERCUBE_ROW_COUNT } from './components/Scene3'
 import { Scene4, Scene4UI } from './components/Scene4'
 import { Scene5, Scene5UI } from './components/Scene5'
@@ -16,6 +17,7 @@ function App() {
   const [rotationMode, setRotationMode] = useState(0) // For Scene 2 tesseract rotation
   const [isPaused, setIsPaused] = useState(false) // For Scene 2 animation pause
   const [resetTrigger, setResetTrigger] = useState(0) // For Scene 2 reset
+  const [scene2Solid, setScene2Solid] = useState(1) // For Scene 2 solid type (0-5, start on tesseract)
   const [showArrows, setShowArrows] = useState(false) // For Scene 1 arrows
   const [visibleRows, setVisibleRows] = useState(0) // For Scene 3 table rows
   const [zSlice, setZSlice] = useState(0.5) // For Scene 4 z-axis slice
@@ -66,6 +68,12 @@ function App() {
       if (e.code === 'KeyR' && activeScene === 2) {
         e.preventDefault()
         setResetTrigger((prev) => prev + 1)
+      }
+
+      // S key handler - Scene 2 specific (cycle solid type)
+      if (e.code === 'KeyS' && activeScene === 2) {
+        e.preventDefault()
+        setScene2Solid((prev) => (prev + 1) % POLYTOPES_4D.length)
       }
 
       // A key handler - Scene 1 specific (toggle arrows)
@@ -199,7 +207,7 @@ function App() {
 
           {/* Scene-specific content */}
           {activeScene === 1 && <Scene1 w={w} setW={setW} showArrows={showArrows} />}
-          {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} />}
+          {activeScene === 2 && <Scene2 rotationMode={rotationMode} isPaused={isPaused} resetTrigger={resetTrigger} solidIndex={scene2Solid} />}
           {activeScene === 3 && <Scene3 visibleRows={visibleRows} />}
           {activeScene === 5 && <Scene5 w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} resetTrigger={scene5ResetTrigger} />}
           {activeScene === 6 && <Scene6 stage={scene6Stage} animProgress={scene6AnimProgress} setAnimProgress={setScene6AnimProgress} />}
@@ -222,7 +230,7 @@ function App() {
 
         {/* Scene-specific UI */}
         {activeScene === 1 && <Scene1UI w={w} setW={setW} showArrows={showArrows} />}
-        {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} />}
+        {activeScene === 2 && <Scene2UI rotationMode={rotationMode} isPaused={isPaused} solidIndex={scene2Solid} />}
         {activeScene === 3 && <Scene3UI visibleRows={visibleRows} />}
         {activeScene === 4 && <Scene4UI z={zSlice} setZ={setZSlice} rotation={scene4Rotation} showArrows={scene4ShowArrows} />}
         {activeScene === 5 && <Scene5UI w={scene5W} setW={setScene5W} isPaused={scene5Paused} rotationMode={scene5RotationMode} />}
